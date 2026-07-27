@@ -132,8 +132,6 @@ CREATE TABLE admin_kaprodi (
   {
     "nim": "21.11.4005",
     "nama": "Rizky Ramadhan",
-    "prodi": "Informatika",
-    "angkatan": "2021",
     "email": "rizky.ramadhan@students.amikom.ac.id",
     "password": "Password123"
   }

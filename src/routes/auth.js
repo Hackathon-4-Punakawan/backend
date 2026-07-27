@@ -20,11 +20,13 @@ function validateRequired(body, required) {
 // 1. REGISTER MAHASISWA (SELF-REGISTRATION)
 router.post("/register-mahasiswa", async (req, res, next) => {
   try {
-    validateRequired(req.body, ["nim", "nama", "prodi", "email", "password"]);
+    validateRequired(req.body, ["nim", "nama", "email", "password"]);
 
     const email = req.body.email.trim().toLowerCase();
     const nim = req.body.nim.trim();
     const password = req.body.password;
+    const prodi = req.body.prodi ? req.body.prodi.trim() : "Informatika";
+    const angkatan = req.body.angkatan ? req.body.angkatan.trim() : null;
 
     if (password.length < 6) {
       throw httpError(400, "Password minimal 6 karakter");
@@ -76,8 +78,8 @@ router.post("/register-mahasiswa", async (req, res, next) => {
         nim,
         user_id: user.id,
         nama: req.body.nama.trim(),
-        prodi: req.body.prodi.trim(),
-        angkatan: req.body.angkatan || null,
+        prodi,
+        angkatan,
         email,
         foto_profile: req.body.foto_profile || null,
       })
