@@ -65,6 +65,17 @@ Mahasiswa dapat menggunakan 2 cara untuk menyediakan informasi jobdesk magang:
   POST /api/v1/konversi-matkul
   ```
 
+### Langkah 6: Penerusan & Penilaian oleh Dosen Pembimbing Magang (DPL Step 4)
+- Setelah disimpan, data usulan konversi **secara otomatis diteruskan ke Dosen Pembimbing (DPL)** yang telah ditetapkan pada **Step 4**.
+- Dosen DPL dapat melihat seluruh usulan konversi mahasiswa bimbingannya via:
+  ```http
+  GET /api/v1/konversi-matkul/dpl/list
+  ```
+- Dosen DPL memberikan persetujuan (ACC), catatan revisi, serta menginputkan nilai akhir (angka & huruf) via:
+  ```http
+  POST /api/v1/konversi-matkul/dpl/review
+  ```
+
 ---
 
 ## 📡 3. Spesifikasi API Contracts

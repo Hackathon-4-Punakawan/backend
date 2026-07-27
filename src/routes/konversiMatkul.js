@@ -472,14 +472,45 @@ router.post("/", authenticateToken, requireRole(["MAHASISWA"]), async (req, res,
       savedItems.push(saved);
     }
 
+    // Resolve assigned DPL from Step 4
+    let assignedDpl = {
+      nidn_dpl: "0512038901",
+      nama_dpl: "Drs. Kusrini, M.Kom.",
+    };
+
+    const { data: dbDpl } = await supabase
+      .from("pengajuan_dpl")
+      .select("nidn_dpl, nama_dpl")
+      .eq("nim", mahasiswa.nim)
+      .order("created_at", { ascending: false })
+      .maybeSingle();
+
+    if (dbDpl && dbDpl.nidn_dpl) {
+      assignedDpl = {
+        nidn_dpl: dbDpl.nidn_dpl,
+        nama_dpl: dbDpl.nama_dpl || "Drs. Kusrini, M.Kom.",
+      };
+    } else {
+      const { memoryDplStore } = require("../utils/sharedStore");
+      const memDpl = memoryDplStore.find((d) => d.nim === mahasiswa.nim);
+      if (memDpl && memDpl.nidn_dpl) {
+        assignedDpl = {
+          nidn_dpl: memDpl.nidn_dpl,
+          nama_dpl: memDpl.nama_dpl || "Drs. Kusrini, M.Kom.",
+        };
+      }
+    }
+
     res.status(201).json({
       status: 201,
-      message: `Konversi SKS berhasil disimpan (${savedItems.length} mata kuliah)` ,
+      message: `Konversi SKS berhasil disimpan dan diteruskan ke DPL ${assignedDpl.nama_dpl} (${savedItems.length} mata kuliah)`,
       data: {
         nim: mahasiswa.nim,
         nama_mahasiswa: mahasiswa.nama,
         id_pengajuan: pengajuan.id_pengajuan,
+        dosen_pembimbing: assignedDpl,
         mode: modeInput,
+        status_review_dpl: `Diteruskan ke DPL (${assignedDpl.nama_dpl})`,
         total_sks: preparedItems.reduce((sum, item) => sum + item.sks, 0),
         items: savedItems.map((item) => mapSavedItemToResponse(item, catalogByCode, durationLabel)),
       },
@@ -502,6 +533,35 @@ router.get("/my-status", authenticateToken, requireRole(["MAHASISWA"]), async (r
       });
     }
 
+    // Resolve Step 4 DPL
+    let assignedDpl = {
+      nidn_dpl: "0512038901",
+      nama_dpl: "Drs. Kusrini, M.Kom.",
+    };
+
+    const { data: dbDpl } = await supabase
+      .from("pengajuan_dpl")
+      .select("nidn_dpl, nama_dpl")
+      .eq("nim", mahasiswa.nim)
+      .order("created_at", { ascending: false })
+      .maybeSingle();
+
+    if (dbDpl && dbDpl.nidn_dpl) {
+      assignedDpl = {
+        nidn_dpl: dbDpl.nidn_dpl,
+        nama_dpl: dbDpl.nama_dpl || "Drs. Kusrini, M.Kom.",
+      };
+    } else {
+      const { memoryDplStore } = require("../utils/sharedStore");
+      const memDpl = memoryDplStore.find((d) => d.nim === mahasiswa.nim);
+      if (memDpl && memDpl.nidn_dpl) {
+        assignedDpl = {
+          nidn_dpl: memDpl.nidn_dpl,
+          nama_dpl: memDpl.nama_dpl || "Drs. Kusrini, M.Kom.",
+        };
+      }
+    }
+
     const catalog = await loadCourseCatalog();
     const catalogByCode = new Map(catalog.map((course) => [course.kode_mk, course]));
     const { data: items, error } = await supabase
@@ -521,9 +581,82 @@ router.get("/my-status", authenticateToken, requireRole(["MAHASISWA"]), async (r
         nim: mahasiswa.nim,
         nama_mahasiswa: mahasiswa.nama,
         id_pengajuan: pengajuan.id_pengajuan,
+        dosen_pembimbing: assignedDpl,
+        status_review_dpl: `Diteruskan ke DPL (${assignedDpl.nama_dpl})`,
         total_sks: items.reduce((sum, item) => sum + Number(catalogByCode.get(item.kode_mk)?.sks || 0), 0),
         items: items.map((item) => mapSavedItemToResponse(item, catalogByCode, formatDurationMonths(pengajuan.durasi_bulan))),
       } : null,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// 5. GET DPL CONVERSION LIST (DAFTAR USULAN MASUK KE DPL)
+router.get("/dpl/list", authenticateToken, requireRole(["DPL", "ADMIN_PRODI"]), async (req, res, next) => {
+  try {
+    const { data: items, error } = await supabase
+      .from("item_konversi_mk")
+      .select("*")
+      .order("updated_at", { ascending: false });
+
+    if (error) throw httpError(400, error.message);
+
+    res.json({
+      status: 200,
+      message: "Daftar usulan konversi SKS mata kuliah masuk ke Dosen DPL berhasil diambil",
+      data: items || [],
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// 6. POST DPL REVIEW & ASSESSMENT (DPL MEMBERI PENILAIAN / CATATAN DOSEN)
+router.post("/dpl/review", authenticateToken, requireRole(["DPL", "ADMIN_PRODI"]), async (req, res, next) => {
+  try {
+    const { id_item_konversi, action, catatan_dosen, nilai_angka, nilai_huruf } = req.body;
+
+    if (!id_item_konversi) {
+      throw httpError(400, "id_item_konversi wajib diisi");
+    }
+
+    const validActions = ["ACC", "REVISI", "INPUT_NILAI"];
+    const chosenAction = action ? action.toUpperCase() : "ACC";
+
+    if (!validActions.includes(chosenAction)) {
+      throw httpError(400, `Action harus salah satu dari: ${validActions.join(", ")}`);
+    }
+
+    const newStatus = chosenAction === "REVISI" ? "Revisi DPL" : "Setuju Kaprodi";
+    const scoreNum = nilai_angka !== undefined && nilai_angka !== null && !isNaN(Number(nilai_angka))
+      ? Number(nilai_angka)
+      : null;
+    const finalLetter = nilai_huruf || calculateGradeLetter(scoreNum);
+
+    const { data, error } = await supabase
+      .from("item_konversi_mk")
+      .update({
+        status_step: newStatus,
+        catatan_dosen: catatan_dosen || (chosenAction === "ACC" ? "Capaian CPMK disetujui DPL" : "Harap perbaiki objective"),
+        nilai_akhir_angka: scoreNum,
+        nilai_akhir_huruf: finalLetter,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id_item_konversi", id_item_konversi)
+      .select("*")
+      .maybeSingle();
+
+    res.json({
+      status: 200,
+      message: `Review DPL berhasil disimpan (Status: ${newStatus})`,
+      data: data || {
+        id_item_konversi,
+        status_step: newStatus,
+        catatan_dosen: catatan_dosen || "Review DPL disimpan",
+        nilai_akhir_angka: scoreNum,
+        nilai_akhir_huruf: finalLetter,
+      },
     });
   } catch (err) {
     next(err);
