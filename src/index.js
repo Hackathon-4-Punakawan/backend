@@ -1,20 +1,8 @@
-require("dotenv").config();
+const app = require("./app");
 
-const express = require("express");
-
-const app = express();
 const port = process.env.PORT || 3000;
-
-app.use(express.json());
-
-app.get("/", (req, res) => {
-  res.json({ message: "Express server is running" });
-});
-
-app.get("/health", (req, res) => {
-  res.json({ status: "ok" });
-});
 
 app.listen(port, () => {
   console.log(`Server running on http://localhost:${port}`);
+  console.log(`API tester available at http://localhost:${port}/api-tester/`);
 });

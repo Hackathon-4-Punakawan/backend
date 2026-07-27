@@ -68,6 +68,8 @@ CREATE TABLE IF NOT EXISTS pengajuan_magang (
   semester INT,
   tahun_akademik VARCHAR(20),
   jenis_surat_fakultas VARCHAR(100),
+  status_surat_fakultas VARCHAR(50) DEFAULT 'Diproses Fakultas',
+  nomor_layanan_fik VARCHAR(100),
   nama_supervisor_mitra VARCHAR(100),
   email_supervisor_mitra VARCHAR(100),
   jenis_program VARCHAR(100) NOT NULL, -- Magang Mandiri / MSIB / Studi Independen

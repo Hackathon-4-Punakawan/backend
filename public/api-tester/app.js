@@ -32,6 +32,12 @@ const endpointCatalog = [
   ["Pengajuan", "GET", "/api/v1/pengajuan-magang/1/progress", "Progress pengajuan"],
   ["Pengajuan", "POST", "/api/v1/pengajuan-magang/1/submit", "Kirim pengajuan", {}],
   ["Pengajuan", "POST", "/api/v1/pengajuan-magang/1/approve", "Setujui pengajuan", { nidn: "0512038901", id_admin: 1 }],
+
+  // PENGAJUAN SURAT FAKULTAS (FIK) & ID MAGANG
+  ["Surat FIK", "GET", "/api/v1/pengajuan-fik/helper-info", "Pre-fill Data Form FIK (Auto Semester & Academic Year)"],
+  ["Surat FIK", "POST", "/api/v1/pengajuan-fik", "Submit Form Pendaftaran FIK (Pengajuan ID Magang / Pra Survey / Id Magang)", { jenis_pengajuan: "Pengajuan ID Magang", kepada_yth: "Yth. Head of Engineering", nama_instansi: "PT Amikom Tech Digital", alamat_instansi: "Jl. Ring Road Utara, Condongcatur, Sleman, Yogyakarta", posisi: "Fullstack Developer Intern", jenis_program: "Magang Mandiri" }],
+  ["Surat FIK", "GET", "/api/v1/pengajuan-fik/my-status", "Monitoring Status Pengajuan FIK Mahasiswa (Embedded Links)"],
+  ["Surat FIK", "PATCH", "/api/v1/pengajuan-fik/1/status", "Update Status Surat Fakultas (Admin/Fakultas)", { status_surat_fakultas: "Disetujui", surat_pengantar_url: "https://fik.amikom.ac.id/downloads/surat-pengantar.pdf" }],
   
   // KONVERSI & PENILAIAN (70:30)
   ["Konversi", "GET", "/api/v1/item-konversi", "Daftar item konversi"],

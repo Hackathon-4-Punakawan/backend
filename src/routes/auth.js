@@ -55,6 +55,17 @@ router.post("/register-mahasiswa", async (req, res, next) => {
       throw httpError(409, "NIM sudah terdaftar dalam sistem");
     }
 
+    // Auto-extract angkatan from first 2 digits of NIM (e.g. 24.11.4005 -> 2024)
+    let angkatan = req.body.angkatan ? req.body.angkatan.trim() : "";
+    if (!angkatan) {
+      const matchNim = nim.match(/^(\d{2})/);
+      if (matchNim) {
+        angkatan = (2000 + Number.parseInt(matchNim[1], 10)).toString();
+      } else {
+        angkatan = new Date().getFullYear().toString();
+      }
+    }
+
     // Hash password
     const password_hash = await bcrypt.hash(password, 10);
 
@@ -80,6 +91,7 @@ router.post("/register-mahasiswa", async (req, res, next) => {
         user_id: user.id,
         nama,
         prodi,
+        angkatan,
         email,
         foto_profile,
       })

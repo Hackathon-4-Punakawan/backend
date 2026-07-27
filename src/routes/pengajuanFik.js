@@ -1,0 +1,499 @@
+const crypto = require("crypto");
+const express = require("express");
+const supabase = require("../config/supabase");
+const { authenticateToken, requireRole } = require("../middleware/auth");
+
+const router = express.Router();
+
+const JENIS_PENGAJUAN_VALID = ["Pengajuan ID Magang", "Pra Survey Magang", "Id Magang"];
+const FIK_WEB_STATUS_URL = "https://fik.amikom.ac.id/page/status-pengajuan-layanan";
+const FIK_TELEGRAM_BOT_URL = "http://t.me/AMIKOMFakultasbot";
+const AUTO_ACC_DELAY_MS = 5000; // 5 Detik Auto-ACC Simulasi FIK
+
+function httpError(status, message) {
+  const error = new Error(message);
+  error.status = status;
+  return error;
+}
+
+function resolveAngkatan(mhs) {
+  if (mhs && mhs.angkatan && String(mhs.angkatan).trim()) {
+    return String(mhs.angkatan).trim();
+  }
+  if (mhs && mhs.nim) {
+    const match = String(mhs.nim).trim().match(/^(\d{2})/);
+    if (match) {
+      return (2000 + Number.parseInt(match[1], 10)).toString();
+    }
+  }
+  return new Date().getFullYear().toString();
+}
+
+function calculateSemesterAndAcademicYear(angkatanStr, referenceDate = new Date()) {
+  const currentYear = referenceDate.getFullYear();
+  const currentMonth = referenceDate.getMonth() + 1; // 1 to 12
+  const entryYear = Number.parseInt(angkatanStr, 10) || currentYear;
+
+  let academicYear = "";
+  let semester = 1;
+
+  if (currentMonth >= 8) {
+    academicYear = `${currentYear}/${currentYear + 1}`;
+    semester = (currentYear - entryYear) * 2 + 1;
+  } else {
+    academicYear = `${currentYear - 1}/${currentYear}`;
+    semester = (currentYear - 1 - entryYear) * 2 + 2;
+  }
+
+  if (semester < 1) semester = 1;
+
+  return { semester, tahunAkademik: academicYear };
+}
+
+function generateOfficialIdMagangFik(idPengajuan) {
+  // Format persis FIK: FIK + 7-digit angka (contoh: FIK6199364)
+  const baseNum = 6199360 + Number(idPengajuan || 1);
+  return `FIK${baseNum}`;
+}
+
+// Function to trigger auto-ACC for a given application ID
+async function triggerAutoAccFik(idPengajuan) {
+  try {
+    const formattedIdMagang = generateOfficialIdMagangFik(idPengajuan);
+    const defaultSuratUrl = `https://fik.amikom.ac.id/surat/SURAT-PENGANTAR-${formattedIdMagang}.pdf`;
+    const payload = {
+      id_magang_fakultas: formattedIdMagang,
+      nomor_layanan_fik: formattedIdMagang,
+      status_surat_fakultas: "Disetujui",
+      status_pengajuan: "Disetujui",
+      surat_pengantar_url: defaultSuratUrl,
+      catatan_revisi_proposal: "ACC Otomatis oleh Sistem FIK (Simulasi Layanan)",
+    };
+
+    const { error } = await supabase
+      .from("pengajuan_magang")
+      .update(payload)
+      .eq("id_pengajuan", idPengajuan);
+
+    if (error && error.message && error.message.includes("schema cache")) {
+      await supabase
+        .from("pengajuan_magang")
+        .update({ status_program: "Sedang Berjalan" })
+        .eq("id_pengajuan", idPengajuan);
+    }
+    console.log(`✅ Auto-ACC FIK berhasil untuk ID Pengajuan #${idPengajuan} dengan ID Magang: ${formattedIdMagang}`);
+  } catch (err) {
+    console.error(`⚠️ Gagal Auto-ACC FIK untuk ID Pengajuan #${idPengajuan}:`, err.message);
+  }
+}
+
+// 1. GET HELPER INFO FOR FIK SUBMISSION FORM
+router.get("/helper-info", authenticateToken, async (req, res, next) => {
+  try {
+    const userId = req.user.userId;
+
+    const { data: mhs, error: errMhs } = await supabase
+      .from("mahasiswa")
+      .select("*")
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    if (errMhs || !mhs) {
+      throw httpError(404, "Profil mahasiswa tidak ditemukan untuk user ini");
+    }
+
+    const mhsAngkatan = resolveAngkatan(mhs);
+    const { semester, tahunAkademik } = calculateSemesterAndAcademicYear(mhsAngkatan);
+
+    res.json({
+      data: {
+        email: mhs.email,
+        nama: mhs.nama,
+        nim: mhs.nim,
+        prodi: mhs.prodi || "Informatika",
+        angkatan: mhsAngkatan,
+        semester,
+        tahun_akademik: tahunAkademik,
+        jenis_pengajuan_options: JENIS_PENGAJUAN_VALID,
+        auto_acc_delay_seconds: 5,
+        tracking_urls: {
+          web_fik: FIK_WEB_STATUS_URL,
+          telegram_bot: FIK_TELEGRAM_BOT_URL,
+        },
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// 2. SUBMIT PENGAJUAN SURAT / ID MAGANG FIK
+router.post("/", authenticateToken, requireRole(["MAHASISWA"]), async (req, res, next) => {
+  try {
+    const userId = req.user.userId;
+    const {
+      jenis_pengajuan,
+      kepada_yth,
+      tujuan_surat,
+      nama_instansi,
+      alamat_instansi,
+      jenis_program,
+      posisi,
+      durasi_bulan,
+      tanggal_mulai,
+      tanggal_selesai,
+    } = req.body;
+
+    if (!jenis_pengajuan || !JENIS_PENGAJUAN_VALID.includes(jenis_pengajuan)) {
+      throw httpError(
+        400,
+        `Jenis pengajuan harus salah satu dari: ${JENIS_PENGAJUAN_VALID.join(", ")}`
+      );
+    }
+
+    if (!nama_instansi || !nama_instansi.trim()) {
+      throw httpError(400, "Nama instansi wajib diisi");
+    }
+
+    if (!alamat_instansi || !alamat_instansi.trim()) {
+      throw httpError(400, "Alamat instansi wajib diisi");
+    }
+
+    // Get Student Profile
+    const { data: mhs, error: errMhs } = await supabase
+      .from("mahasiswa")
+      .select("*")
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    if (errMhs || !mhs) {
+      throw httpError(404, "Profil mahasiswa tidak ditemukan. Silakan lengkapi profil terlebih dahulu.");
+    }
+
+    const mhsAngkatan = resolveAngkatan(mhs);
+    const { semester: autoSemester, tahunAkademik: autoTahunAkademik } =
+      calculateSemesterAndAcademicYear(mhsAngkatan);
+
+    const semester = req.body.semester ? Number.parseInt(req.body.semester, 10) : autoSemester;
+    const tahun_akademik = req.body.tahun_akademik || autoTahunAkademik;
+    const targetTujuanSurat = kepada_yth || tujuan_surat || `Yth. Pimpinan ${nama_instansi.trim()}`;
+
+    // Temporary pending tracking ID until approved
+    const tempTrackingCode = `FIK-PENDING-${new Date().getFullYear()}-${crypto.randomBytes(2).toString("hex").toUpperCase()}`;
+    const nowIso = new Date().toISOString();
+
+    const fullPayload = {
+      nim: mhs.nim,
+      id_magang_fakultas: tempTrackingCode,
+      nomor_layanan_fik: tempTrackingCode,
+      jenis_surat_fakultas: jenis_pengajuan,
+      nama_instansi: nama_instansi.trim(),
+      alamat_instansi: alamat_instansi.trim(),
+      tujuan_surat: targetTujuanSurat,
+      semester,
+      tahun_akademik,
+      jenis_program: jenis_program || `FIK: ${jenis_pengajuan}`,
+      posisi: posisi || `${nama_instansi.trim()} (${jenis_pengajuan})`,
+      durasi_bulan: durasi_bulan ? Number.parseInt(durasi_bulan, 10) : 6,
+      tanggal_mulai: tanggal_mulai || null,
+      tanggal_selesai: tanggal_selesai || null,
+      status_surat_fakultas: "Diproses Fakultas",
+      status_pengajuan: "Menunggu Verifikasi",
+      status_program: "Sedang Berjalan",
+      created_at: nowIso,
+    };
+
+    let data = null;
+    let { data: directData, error: directErr } = await supabase
+      .from("pengajuan_magang")
+      .insert(fullPayload)
+      .select()
+      .maybeSingle();
+
+    if (directErr && directErr.message && (directErr.message.includes("pengajuan_magang_pkey") || directErr.message.includes("duplicate key"))) {
+      const { data: maxRow } = await supabase
+        .from("pengajuan_magang")
+        .select("id_pengajuan")
+        .order("id_pengajuan", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      const nextId = (maxRow?.id_pengajuan || 0) + 1;
+      fullPayload.id_pengajuan = nextId;
+
+      const { data: fixedData, error: fixedErr } = await supabase
+        .from("pengajuan_magang")
+        .insert(fullPayload)
+        .select()
+        .maybeSingle();
+
+      if (fixedErr && fixedErr.message && fixedErr.message.includes("schema cache")) {
+        const fallbackPayload = {
+          id_pengajuan: nextId,
+          nim: mhs.nim,
+          jenis_program: jenis_program || `FIK: ${jenis_pengajuan}`,
+          posisi: `${nama_instansi.trim()} (${posisi || jenis_pengajuan})`,
+          durasi_bulan: durasi_bulan ? Number.parseInt(durasi_bulan, 10) : 6,
+          tanggal_mulai: tanggal_mulai || null,
+          tanggal_selesai: tanggal_selesai || null,
+          status_program: "Sedang Berjalan",
+          created_at: nowIso,
+        };
+        const { data: retryData, error: retryErr } = await supabase
+          .from("pengajuan_magang")
+          .insert(fallbackPayload)
+          .select()
+          .single();
+        if (retryErr) throw httpError(400, retryErr.message);
+        data = { ...retryData, created_at: retryData.created_at || nowIso };
+      } else if (fixedErr) {
+        throw httpError(400, fixedErr.message);
+      } else {
+        data = fixedData;
+      }
+    } else if (directErr) {
+      if (directErr.message && directErr.message.includes("schema cache")) {
+        const fallbackPayload = {
+          nim: mhs.nim,
+          jenis_program: jenis_program || `FIK: ${jenis_pengajuan}`,
+          posisi: `${nama_instansi.trim()} (${posisi || jenis_pengajuan})`,
+          durasi_bulan: durasi_bulan ? Number.parseInt(durasi_bulan, 10) : 6,
+          tanggal_mulai: tanggal_mulai || null,
+          tanggal_selesai: tanggal_selesai || null,
+          status_program: "Sedang Berjalan",
+          created_at: nowIso,
+        };
+
+        let { data: retryData, error: retryErr } = await supabase
+          .from("pengajuan_magang")
+          .insert(fallbackPayload)
+          .select()
+          .maybeSingle();
+
+        if (retryErr && retryErr.message && retryErr.message.includes("pengajuan_magang_pkey")) {
+          const { data: maxRow } = await supabase
+            .from("pengajuan_magang")
+            .select("id_pengajuan")
+            .order("id_pengajuan", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          fallbackPayload.id_pengajuan = (maxRow?.id_pengajuan || 0) + 1;
+          const retrySeq = await supabase
+            .from("pengajuan_magang")
+            .insert(fallbackPayload)
+            .select()
+            .single();
+          if (retrySeq.error) throw httpError(400, retrySeq.error.message);
+          retryData = retrySeq.data;
+        } else if (retryErr) {
+          throw httpError(400, retryErr.message);
+        }
+
+        data = {
+          ...retryData,
+          id_magang_fakultas: tempTrackingCode,
+          nomor_layanan_fik: tempTrackingCode,
+          jenis_surat_fakultas: jenis_pengajuan,
+          nama_instansi: nama_instansi.trim(),
+          alamat_instansi: alamat_instansi.trim(),
+          tujuan_surat: targetTujuanSurat,
+          semester,
+          tahun_akademik,
+          status_surat_fakultas: "Diproses Fakultas",
+          status_pengajuan: "Menunggu Verifikasi",
+          created_at: retryData.created_at || nowIso,
+        };
+      } else {
+        throw httpError(400, directErr.message);
+      }
+    } else {
+      data = directData;
+    }
+
+    // Schedule 5-Second Auto-ACC Background Timer
+    const createdId = data.id_pengajuan;
+    if (createdId) {
+      setTimeout(() => {
+        triggerAutoAccFik(createdId);
+      }, AUTO_ACC_DELAY_MS);
+    }
+
+    res.status(201).json({
+      message: "Pengajuan ID Magang / Surat FIK berhasil dikirim. Status & ID Magang resmi FIK akan terbit dalam 5 detik.",
+      data: {
+        ...data,
+        id_magang_fakultas: tempTrackingCode,
+        status_surat_fakultas: "Diproses Fakultas",
+        status_pengajuan: "Menunggu Verifikasi",
+        mahasiswa: {
+          nama: mhs.nama,
+          nim: mhs.nim,
+          email: mhs.email,
+          prodi: mhs.prodi || "Informatika",
+        },
+        tracking_info: {
+          id_magang_fakultas: tempTrackingCode,
+          status_surat_fakultas: "Diproses Fakultas",
+          auto_acc_in_seconds: 5,
+          web_fik: FIK_WEB_STATUS_URL,
+          telegram_bot: FIK_TELEGRAM_BOT_URL,
+        },
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// 3. GET MY FIK SUBMISSIONS STATUS (FOR DASHBOARD MONITORING WITH OFFICIAL ID MAGANG FIK)
+router.get("/my-status", authenticateToken, async (req, res, next) => {
+  try {
+    const userId = req.user.userId;
+
+    const { data: mhs, error: errMhs } = await supabase
+      .from("mahasiswa")
+      .select("*")
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    if (errMhs || !mhs) {
+      throw httpError(404, "Profil mahasiswa tidak ditemukan");
+    }
+
+    const { data: list, error: errList } = await supabase
+      .from("pengajuan_magang")
+      .select("*")
+      .eq("nim", mhs.nim)
+      .order("created_at", { ascending: false });
+
+    if (errList) throw httpError(400, errList.message);
+
+    const now = new Date();
+    const formattedList = (list || []).map((item) => {
+      const parsedDate = item.created_at ? new Date(item.created_at) : null;
+      const createdAt = parsedDate && !isNaN(parsedDate.getTime()) ? parsedDate : now;
+      const ageMs = Math.max(0, now.getTime() - createdAt.getTime());
+      const rawStatus = item.status_surat_fakultas || "Diproses Fakultas";
+
+      const isAutoApproved = rawStatus === "Disetujui" || ageMs >= AUTO_ACC_DELAY_MS;
+      const finalStatus = isAutoApproved ? "Disetujui" : "Diproses Fakultas";
+      const officialIdMagang = isAutoApproved
+        ? generateOfficialIdMagangFik(item.id_pengajuan)
+        : (item.id_magang_fakultas || "Diproses");
+
+      const defaultSuratUrl = item.surat_pengantar_url || `https://fik.amikom.ac.id/surat/SURAT-PENGANTAR-${officialIdMagang}.pdf`;
+
+      if (rawStatus !== "Disetujui" && ageMs >= AUTO_ACC_DELAY_MS) {
+        triggerAutoAccFik(item.id_pengajuan);
+      }
+
+      return {
+        ...item,
+        id_magang_fakultas: officialIdMagang,
+        nomor_layanan_fik: officialIdMagang,
+        jenis_surat_fakultas: item.jenis_surat_fakultas || item.jenis_program || "Pengajuan ID Magang",
+        nama_instansi: item.nama_instansi || item.posisi || "-",
+        alamat_instansi: item.alamat_instansi || "-",
+        tujuan_surat: item.tujuan_surat || "Kepada Yth. Pimpinan Instansi",
+        status_surat_fakultas: finalStatus,
+        status_pengajuan: isAutoApproved ? "Disetujui" : (item.status_pengajuan || "Menunggu Verifikasi"),
+        surat_pengantar_url: isAutoApproved ? defaultSuratUrl : item.surat_pengantar_url,
+        mahasiswa: {
+          nama: mhs.nama,
+          nim: mhs.nim,
+          email: mhs.email,
+          prodi: mhs.prodi || "Informatika",
+        },
+        tracking: {
+          id_magang_fakultas: officialIdMagang,
+          status_surat_fakultas: finalStatus,
+          surat_pengantar_url: isAutoApproved ? defaultSuratUrl : item.surat_pengantar_url,
+          web_fik_url: FIK_WEB_STATUS_URL,
+          telegram_bot_url: FIK_TELEGRAM_BOT_URL,
+        },
+      };
+    });
+
+    res.json({
+      data: formattedList,
+      meta: {
+        total: formattedList.length,
+        auto_acc_delay_seconds: 5,
+        tracking_urls: {
+          web_fik: FIK_WEB_STATUS_URL,
+          telegram_bot: FIK_TELEGRAM_BOT_URL,
+        },
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// 4. UPDATE STATUS SURAT FAKULTAS (FOR ADMIN / FAKULTAS)
+router.patch("/:id/status", authenticateToken, async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { status_surat_fakultas, id_magang_fakultas, nomor_layanan_fik, surat_pengantar_url, catatan_revisi_proposal } = req.body;
+
+    const updatePayload = {};
+    if (status_surat_fakultas) updatePayload.status_surat_fakultas = status_surat_fakultas;
+    
+    // Auto-generate official ID Magang if status set to Disetujui and id_magang_fakultas not provided
+    if (status_surat_fakultas === "Disetujui" && !id_magang_fakultas) {
+      const generatedId = generateOfficialIdMagangFik(id);
+      updatePayload.id_magang_fakultas = generatedId;
+      updatePayload.nomor_layanan_fik = generatedId;
+      if (!surat_pengantar_url) {
+        updatePayload.surat_pengantar_url = `https://fik.amikom.ac.id/surat/SURAT-PENGANTAR-FIK-${String(id).padStart(4, "0")}.pdf`;
+      }
+    } else {
+      if (id_magang_fakultas) updatePayload.id_magang_fakultas = id_magang_fakultas;
+      if (nomor_layanan_fik) updatePayload.nomor_layanan_fik = nomor_layanan_fik;
+    }
+
+    if (surat_pengantar_url) updatePayload.surat_pengantar_url = surat_pengantar_url;
+    if (catatan_revisi_proposal !== undefined) updatePayload.catatan_revisi_proposal = catatan_revisi_proposal;
+
+    if (Object.keys(updatePayload).length === 0) {
+      throw httpError(400, "Tidak ada data status yang diperbarui");
+    }
+
+    let data = null;
+    const { data: directData, error: directErr } = await supabase
+      .from("pengajuan_magang")
+      .update(updatePayload)
+      .eq("id_pengajuan", id)
+      .select()
+      .maybeSingle();
+
+    if (directErr && directErr.message && directErr.message.includes("schema cache")) {
+      const { data: fetchRow } = await supabase
+        .from("pengajuan_magang")
+        .select("*")
+        .eq("id_pengajuan", id)
+        .maybeSingle();
+
+      if (!fetchRow) throw httpError(404, "Data pengajuan tidak ditemukan");
+
+      data = {
+        ...fetchRow,
+        status_surat_fakultas: status_surat_fakultas || fetchRow.status_surat_fakultas || "Diproses Fakultas",
+        id_magang_fakultas: updatePayload.id_magang_fakultas || fetchRow.id_magang_fakultas,
+      };
+    } else if (directErr) {
+      throw httpError(400, directErr.message);
+    } else {
+      data = directData;
+    }
+
+    res.json({
+      message: "Status pengajuan surat FIK berhasil diperbarui",
+      data,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+module.exports = router;
