@@ -668,11 +668,6 @@ router.get("/all-steps", authenticateToken, async (req, res, next) => {
         } : null,
         current_step: currentStep,
         riwayat_pengajuan: riwayatPengajuan,
-        step_details: {
-          step_1_id_magang_fik: step1Formatted,
-          step_2_proposal_magang: step2Data,
-          step_3_surat_pengantar: step3Formatted,
-        },
         tracking_status: {
           web_fik_url: FIK_WEB_STATUS_URL,
           telegram_bot_url: FIK_TELEGRAM_BOT_URL,
