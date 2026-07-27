@@ -11,8 +11,7 @@ const PROGRAM_DIIKUTI_ENUM = [
   "Studi Independen Mandiri",
 ];
 
-// Fallback in-memory store for proposals if database schema cache is missing table
-const memoryProposalStore = [];
+const { memoryProposalStore } = require("../utils/sharedStore");
 
 function httpError(status, message) {
   const error = new Error(message);

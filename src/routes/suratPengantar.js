@@ -6,8 +6,7 @@ const router = express.Router();
 
 const AUTO_ACC_DELAY_MS = 5000;
 
-// Fallback in-memory store for cover letters if database schema cache is missing table
-const memorySuratStore = [];
+const { memorySuratStore } = require("../utils/sharedStore");
 
 function httpError(status, message) {
   const error = new Error(message);

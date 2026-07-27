@@ -9,6 +9,7 @@ const JENIS_PENGAJUAN_VALID = ["Pengajuan ID Magang", "Pra Survey Magang", "Id M
 const FIK_WEB_STATUS_URL = "https://fik.amikom.ac.id/page/status-pengajuan-layanan";
 const FIK_TELEGRAM_BOT_URL = "http://t.me/AMIKOMFakultasbot";
 const AUTO_ACC_DELAY_MS = 5000; // 5 Detik Auto-ACC Simulasi FIK
+const { memoryProposalStore, memorySuratStore } = require("../utils/sharedStore");
 
 const BULAN_INDONESIA = [
   "Januari", "Februari", "Maret", "April", "Mei", "Juni",
@@ -565,22 +566,34 @@ router.get("/all-steps", authenticateToken, async (req, res, next) => {
     }
 
     // Step 2: Fetch Proposal Magang
+    let step2Data = null;
     const { data: dbProposals } = await supabase
       .from("proposal_magang")
       .select("*")
       .eq("nim", studentNim)
       .order("created_at", { ascending: false });
 
-    const step2Data = (dbProposals && dbProposals.length > 0) ? dbProposals[0] : null;
+    if (dbProposals && dbProposals.length > 0) {
+      step2Data = dbProposals[0];
+    } else {
+      const memoryProp = memoryProposalStore.find((p) => p.nim === studentNim || (mhs && p.nim === mhs.nim));
+      if (memoryProp) step2Data = memoryProp;
+    }
 
     // Step 3: Fetch Surat Pengantar Magang
+    let step3Data = null;
     const { data: dbSurats } = await supabase
       .from("surat_pengantar_magang")
       .select("*")
       .eq("nim", studentNim)
       .order("created_at", { ascending: false });
 
-    const step3Data = (dbSurats && dbSurats.length > 0) ? dbSurats[0] : null;
+    if (dbSurats && dbSurats.length > 0) {
+      step3Data = dbSurats[0];
+    } else {
+      const memorySurat = memorySuratStore.find((s) => s.nim === studentNim || (mhs && s.email_mahasiswa === mhs.email));
+      if (memorySurat) step3Data = memorySurat;
+    }
     let step3Formatted = null;
 
     if (step3Data) {
