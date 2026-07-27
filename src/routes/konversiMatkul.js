@@ -703,10 +703,10 @@ router.post("/dpl/review", authenticateToken, requireRole(["DPL", "ADMIN_PRODI"]
     }
 
     const newStatus = chosenAction === "REVISI" ? "Revisi DPL" : "Disetujui DPL";
-    const scoreNum = nilai_angka !== undefined && nilai_angka !== null && !isNaN(Number(nilai_angka))
+    const scoreNum = (nilai_angka !== undefined && nilai_angka !== null && nilai_angka !== "" && !isNaN(Number(nilai_angka)))
       ? Number(nilai_angka)
       : null;
-    const finalLetter = nilai_huruf || calculateGradeLetter(scoreNum);
+    const finalLetter = scoreNum !== null ? (nilai_huruf || calculateGradeLetter(scoreNum)) : (nilai_huruf || null);
 
     const { data, error } = await supabase
       .from("item_konversi_mk")
