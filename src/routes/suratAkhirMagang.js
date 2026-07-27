@@ -18,14 +18,13 @@ function generateThankYouLetterUrl(idMagang) {
 }
 
 function calculateGradeLetter(score) {
-  if (score >= 85) return "A";
-  if (score >= 80) return "A-";
-  if (score >= 75) return "B+";
-  if (score >= 70) return "B";
-  if (score >= 65) return "B-";
-  if (score >= 60) return "C+";
-  if (score >= 55) return "C";
-  if (score >= 40) return "D";
+  if (score === null || score === undefined || score === "" || Number.isNaN(Number(score))) return null;
+  const val = Math.ceil(Number(score));
+  if (val >= 81) return "A";
+  if (val >= 61) return "B";
+  if (val >= 41) return "C";
+  if (val >= 21) return "D";
+  if (val >= 0) return "E";
   return "E";
 }
 

@@ -12,16 +12,14 @@ function httpError(status, message) {
 }
 
 function calculateGradeLetter(score) {
-  if (score === null || score === undefined || Number.isNaN(Number(score))) return null;
-  const value = Number(score);
-  if (value >= 85) return "A";
-  if (value >= 80) return "A-";
-  if (value >= 75) return "B+";
-  if (value >= 70) return "B";
-  if (value >= 65) return "B-";
-  if (value >= 60) return "C+";
-  if (value >= 55) return "C";
-  return "D";
+  if (score === null || score === undefined || score === "" || Number.isNaN(Number(score))) return null;
+  const val = Math.ceil(Number(score));
+  if (val >= 81) return "A";
+  if (val >= 61) return "B";
+  if (val >= 41) return "C";
+  if (val >= 21) return "D";
+  if (val >= 0) return "E";
+  return "E";
 }
 
 // Helper: Resolve active DPL profile from JWT token / DB
