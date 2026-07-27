@@ -1,15 +1,9 @@
 const express = require("express");
 const supabase = require("../config/supabase");
 const { authenticateToken, requireRole } = require("../middleware/auth");
-const { memoryKonversiStore, memoryProposalStore } = require("../utils/sharedStore");
+const { memoryProposalStore } = require("../utils/sharedStore");
 
 const router = express.Router();
-
-function httpError(status, message) {
-  const error = new Error(message);
-  error.status = status;
-  return error;
-}
 
 const DEFAULT_COURSE_CATALOG = [
   {
@@ -17,172 +11,310 @@ const DEFAULT_COURSE_CATALOG = [
     nama_mk: "Pemrograman Web",
     sks: 4,
     semester: 6,
-    cpmk: "CPMK16-Mahasiswa mampu merancang perangkat lunak pada berbagai platform digital\nCPMK18-Mahasiswa mampu menganalisis kebutuhan industri atau masyarakat",
+    cpmk: [
+      "CPMK16-Mahasiswa mampu merancang perangkat lunak pada berbagai platform digital",
+      "CPMK18-Mahasiswa mampu menganalisis kebutuhan industri",
+    ],
     default_objective: "Memulai Dasar Pemrograman Web. 1. Meneliti, merancang, dan membangun web app responsif.",
+    keywords: ["web", "frontend", "react", "ui", "fullstack", "api"],
   },
   {
     kode_mk: "ST116",
     nama_mk: "Pemrograman Basis Data",
     sks: 4,
-    semester: 6,
-    cpmk: "CPMK15-Mahasiswa mampu menganalisis perangkat lunak pada berbagai platform digital\nCPMK16-Mahasiswa mampu merancang perangkat lunak pada berbagai platform digital",
+    semester: 5,
+    cpmk: [
+      "CPMK15-Mahasiswa mampu menganalisis perangkat lunak pada berbagai platform digital",
+      "CPMK16-Mahasiswa mampu merancang perangkat lunak",
+    ],
     default_objective: "Belajar Fundamen Database. 1. Menerapkan Microservices, SQL query, dan database optimization.",
+    keywords: ["database", "sql", "postgresql", "query", "schema", "data"],
   },
   {
     kode_mk: "ST091",
     nama_mk: "Analisis dan Desain Sistem Informasi",
     sks: 4,
     semester: 6,
-    cpmk: "CPMK11-Mahasiswa mampu menghasilkan produk ekonomi kreatif digital dalam bidang informatika\nCPMK18-Mahasiswa mampu menganalisis kebutuhan industri atau masyarakat",
+    cpmk: [
+      "CPMK11-Mahasiswa mampu menghasilkan produk ekonomi kreatif digital dalam bidang informatika",
+      "CPMK18-Mahasiswa mampu menganalisis kebutuhan industri",
+    ],
     default_objective: "Memulai Dasar Perancangan Sistem. 1. Meneliti, menganalisis sistem, UML diagram, dan proses bisnis.",
+    keywords: ["analisis", "sistem", "kebutuhan", "uml", "proses bisnis", "desain"],
   },
   {
     kode_mk: "ST055",
     nama_mk: "Arsitektur REST API & Cloud Computing",
     sks: 4,
     semester: 6,
-    cpmk: "CPMK12-Mahasiswa mampu membangun API microservices dan cloud infrastructure",
+    cpmk: [
+      "CPMK12-Mahasiswa mampu membangun API microservices dan cloud infrastructure",
+    ],
     default_objective: "Membangun REST API scalable, backend Node.js, dan deployment cloud server.",
+    keywords: ["rest api", "backend", "microservices", "cloud", "node.js", "deployment"],
   },
   {
-    kode_mk: "ST060",
-    nama_mk: "Etika Profesi & Manajemen Proyek TI",
+    kode_mk: "ST170",
+    nama_mk: "Rekayasa Perangkat Lunak",
     sks: 4,
-    semester: 6,
-    cpmk: "CPMK09-Mahasiswa mampu berkomunikasi dan bekerja sama secara profesional dalam tim",
-    default_objective: "Manajemen proyek software berbasis Agile/Scrum dan komunikasi tim industri.",
+    semester: 5,
+    cpmk: [
+      "CPMK-Mahasiswa mampu menerapkan ilmu informatika untuk menyelesaikan masalah industri",
+      "CPMK-Mahasiswa mampu membangun clean architecture dan REST API",
+    ],
+    default_objective: "Menerapkan software engineering, clean architecture, testing, dan delivery proses pada proyek industri.",
+    keywords: ["software", "engineering", "clean architecture", "testing", "backend", "rest api"],
   },
 ];
 
+function httpError(status, message) {
+  const error = new Error(message);
+  error.status = status;
+  return error;
+}
+
 function calculateGradeLetter(score) {
-  if (score === null || score === undefined || isNaN(Number(score))) return null;
-  const val = Number(score);
-  if (val >= 85) return "A";
-  if (val >= 80) return "A-";
-  if (val >= 75) return "B+";
-  if (val >= 70) return "B";
-  if (val >= 65) return "B-";
-  if (val >= 60) return "C+";
-  if (val >= 55) return "C";
+  if (score === null || score === undefined || Number.isNaN(Number(score))) return null;
+  const value = Number(score);
+  if (value >= 85) return "A";
+  if (value >= 80) return "A-";
+  if (value >= 75) return "B+";
+  if (value >= 70) return "B";
+  if (value >= 65) return "B-";
+  if (value >= 60) return "C+";
+  if (value >= 55) return "C";
   return "D";
 }
 
-// 1. GET COURSE CATALOG FOR MANUAL SELECTION
-router.get("/catalog", authenticateToken, async (req, res, next) => {
-  try {
-    const { data: dbCatalog } = await supabase
-      .from("mata_kuliah_catalog")
+function formatDurationMonths(months) {
+  const parsed = Number(months);
+  return Number.isFinite(parsed) && parsed > 0 ? `${parsed} Bulan` : "6 Bulan";
+}
+
+function normalizeText(value) {
+  return String(value || "").toLowerCase();
+}
+
+async function resolveMahasiswa(req) {
+  const candidates = [];
+  if (req.user?.userId) candidates.push({ column: "user_id", value: req.user.userId });
+  if (req.user?.nim) candidates.push({ column: "nim", value: req.user.nim });
+  if (req.user?.email) candidates.push({ column: "email", value: req.user.email });
+
+  for (const candidate of candidates) {
+    const { data, error } = await supabase
+      .from("mahasiswa")
       .select("*")
-      .order("kode_mk", { ascending: true });
+      .eq(candidate.column, candidate.value)
+      .maybeSingle();
 
-    const catalog = dbCatalog && dbCatalog.length > 0 ? dbCatalog : DEFAULT_COURSE_CATALOG;
+    if (error) throw httpError(400, error.message);
+    if (data) return data;
+  }
 
+  throw httpError(404, "Data mahasiswa tidak ditemukan");
+}
+
+async function getLatestPengajuan(nim) {
+  const { data, error } = await supabase
+    .from("pengajuan_magang")
+    .select("*")
+    .eq("nim", nim)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) throw httpError(400, error.message);
+  return data;
+}
+
+async function getLatestProposal(nim) {
+  const { data, error } = await supabase
+    .from("proposal_magang")
+    .select("*")
+    .eq("nim", nim)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) throw httpError(400, error.message);
+  return data || memoryProposalStore.find((item) => item.nim === nim) || null;
+}
+
+function buildRecommendationReason(course, score) {
+  if (score >= 95) return `Aktivitas magang sangat sesuai dengan ${course.nama_mk} dan CPMK yang dipetakan.`;
+  if (score >= 90) return `Aktivitas magang mencakup kompetensi inti yang relevan dengan ${course.nama_mk}.`;
+  if (score >= 80) return `Terdapat kecocokan konteks pekerjaan dengan capaian pembelajaran ${course.nama_mk}.`;
+  return `Mata kuliah ${course.nama_mk} masih relevan dengan deskripsi aktivitas industri mahasiswa.`;
+}
+
+function scoreCourseAgainstText(course, text) {
+  const normalized = normalizeText(text);
+  const searchArea = [
+    course.nama_mk,
+    ...(course.cpmk || []),
+    course.default_objective,
+    ...(course.keywords || []),
+  ].join(" ").toLowerCase();
+  const keywords = Array.from(new Set((course.keywords || []).concat(searchArea.split(/[^a-z0-9.+#-]+/i).filter((word) => word.length > 3))));
+
+  let score = 55;
+  let hits = 0;
+  for (const keyword of keywords) {
+    if (keyword && normalized.includes(keyword.toLowerCase())) {
+      hits += 1;
+      score += keyword.includes(" ") ? 8 : 5;
+    }
+  }
+
+  if (normalized.includes(course.kode_mk.toLowerCase())) score += 10;
+  if (course.nama_mk && normalized.includes(course.nama_mk.toLowerCase())) score += 10;
+
+  return {
+    score: Math.min(score, 98),
+    hits,
+  };
+}
+
+async function loadCourseCatalog() {
+  const [{ data: courses, error: courseError }, { data: mappings, error: mappingError }, { data: cpls, error: cplError }] = await Promise.all([
+    supabase.from("mata_kuliah").select("kode_mk, nama_mk, sks, semester"),
+    supabase.from("pemetaan_cpl_mk").select("kode_mk, id_cpl"),
+    supabase.from("cpl_cpmk").select("id_cpl, kode_cpl, nama_kompetensi, deskripsi"),
+  ]);
+
+  if (courseError) throw httpError(400, courseError.message);
+  if (mappingError) throw httpError(400, mappingError.message);
+  if (cplError) throw httpError(400, cplError.message);
+
+  const cplMap = new Map((cpls || []).map((item) => [item.id_cpl, item]));
+  const mappingByCourse = new Map();
+  for (const mapping of mappings || []) {
+    const list = mappingByCourse.get(mapping.kode_mk) || [];
+    const cpl = cplMap.get(mapping.id_cpl);
+    if (cpl) list.push(`${cpl.kode_cpl}-${cpl.nama_kompetensi}`);
+    mappingByCourse.set(mapping.kode_mk, list);
+  }
+
+  const merged = new Map();
+  for (const course of courses || []) {
+    merged.set(course.kode_mk, {
+      kode_mk: course.kode_mk,
+      nama_mk: course.nama_mk,
+      sks: course.sks,
+      semester: course.semester,
+      cpmk: mappingByCourse.get(course.kode_mk) || [],
+      default_objective: `Menerapkan capaian industri yang relevan dengan ${course.nama_mk}.`,
+      keywords: [course.nama_mk, ...(mappingByCourse.get(course.kode_mk) || [])],
+    });
+  }
+
+  for (const course of DEFAULT_COURSE_CATALOG) {
+    if (!merged.has(course.kode_mk)) {
+      merged.set(course.kode_mk, course);
+      continue;
+    }
+
+    const current = merged.get(course.kode_mk);
+    merged.set(course.kode_mk, {
+      ...course,
+      ...current,
+      cpmk: current.cpmk && current.cpmk.length ? current.cpmk : course.cpmk,
+      default_objective: current.default_objective || course.default_objective,
+      keywords: Array.from(new Set([...(course.keywords || []), ...(current.keywords || [])])),
+    });
+  }
+
+  return Array.from(merged.values());
+}
+
+function mapSavedItemToResponse(item, catalogByCode, durationLabel) {
+  const course = catalogByCode.get(item.kode_mk);
+  const cpmkList = course?.cpmk || [];
+  return {
+    id_item_konversi: item.id_item_konversi,
+    kode_mk: item.kode_mk,
+    nama_mk: course?.nama_mk || item.kode_mk,
+    sks: course?.sks || null,
+    cpmk: cpmkList.join("\n"),
+    objective: item.modul_industri || item.aktivitas_magang || "",
+    durasi: durationLabel,
+    nilai_angka: item.nilai_akhir_angka,
+    nilai_huruf: item.nilai_akhir_huruf,
+    status_step: item.status_step || item.status_usulan || "Setuju Kaprodi",
+  };
+}
+
+router.get("/catalog", authenticateToken, requireRole(["MAHASISWA"]), async (req, res, next) => {
+  try {
+    const catalog = await loadCourseCatalog();
     res.json({
       status: 200,
       message: "Daftar katalog mata kuliah konversi SKS berhasil diambil",
-      data: catalog,
+      data: catalog.map((course) => ({
+        kode_mk: course.kode_mk,
+        nama_mk: course.nama_mk,
+        sks: course.sks,
+        semester: course.semester,
+        cpmk: (course.cpmk || []).join("\n"),
+        default_objective: course.default_objective,
+      })),
     });
   } catch (err) {
     next(err);
   }
 });
 
-// 2. POST AI RECOMMENDATION KONVERSI MATKUL
-router.post("/ai-recommendation", authenticateToken, async (req, res, next) => {
+router.post("/ai-recommendation", authenticateToken, requireRole(["MAHASISWA"]), async (req, res, next) => {
   try {
-    const userId = req.user.userId;
-    const { deskripsi_kegiatan: inputDeskripsi } = req.body;
+    const mahasiswa = await resolveMahasiswa(req);
+    const pengajuan = await getLatestPengajuan(mahasiswa.nim);
+    const proposal = await getLatestProposal(mahasiswa.nim);
 
-    const { data: mhs } = await supabase
-      .from("mahasiswa")
-      .select("*")
-      .eq("user_id", userId)
-      .maybeSingle();
+    const inputDeskripsi = typeof req.body.deskripsi_kegiatan === "string" ? req.body.deskripsi_kegiatan.trim() : "";
+    const fallbackDeskripsi = [proposal?.deskripsi_kegiatan, proposal?.keahlian_utama].filter(Boolean).join(" ").trim();
+    const analyzedText = inputDeskripsi || fallbackDeskripsi;
 
-    if (!mhs) throw httpError(404, "Data mahasiswa tidak ditemukan");
-
-    // Fetch internship activity description from proposal if not supplied
-    let textToAnalyze = inputDeskripsi;
-    if (!textToAnalyze) {
-      const { data: dbProp } = await supabase
-        .from("proposal_magang")
-        .select("deskripsi_kegiatan, keahlian_utama")
-        .eq("nim", mhs.nim)
-        .order("created_at", { ascending: false })
-        .maybeSingle();
-
-      const memoryProp = memoryProposalStore.find((p) => p.nim === mhs.nim);
-      const chosen = dbProp || memoryProp;
-
-      if (chosen) {
-        textToAnalyze = `${chosen.deskripsi_kegiatan || ""} ${chosen.keahlian_utama || ""}`;
-      } else {
-        textToAnalyze = "Pengembangan web application, REST API backend, pengelolaan database PostgreSQL, dan analisis sistem.";
-      }
+    if (!analyzedText) {
+      throw httpError(400, "deskripsi_kegiatan tidak ditemukan. Isi manual atau lengkapi Proposal Step 2 terlebih dahulu");
     }
 
-    const lowerText = textToAnalyze.toLowerCase();
+    const durationLabel = formatDurationMonths(pengajuan?.durasi_bulan);
+    const catalog = await loadCourseCatalog();
 
-    // Fetch master course catalog
-    const { data: dbCatalog } = await supabase
-      .from("mata_kuliah_catalog")
-      .select("*");
-
-    const catalog = dbCatalog && dbCatalog.length > 0 ? dbCatalog : DEFAULT_COURSE_CATALOG;
-
-    // AI Keyword & CPMK Matching Logic
-    const recommendations = catalog.map((mk) => {
-      let matchScore = 70; // baseline
-      let reason = "Mata kuliah relevan dengan kurikulum semester berjalan";
-
-      if (mk.kode_mk === "ST084" || mk.nama_mk.toLowerCase().includes("web")) {
-        if (lowerText.includes("web") || lowerText.includes("frontend") || lowerText.includes("api") || lowerText.includes("fullstack")) {
-          matchScore = 95;
-          reason = "Aktivitas magang melibatkan pengembangan web & REST API yang sangat sesuai dengan CPMK16 & CPMK18";
-        }
-      } else if (mk.kode_mk === "ST116" || mk.nama_mk.toLowerCase().includes("basis data")) {
-        if (lowerText.includes("database") || lowerText.includes("sql") || lowerText.includes("postgres") || lowerText.includes("data")) {
-          matchScore = 92;
-          reason = "Aktivitas magang mencakup pengelolaan database & query SQL yang cocok dengan CPMK15 & CPMK16";
-        }
-      } else if (mk.kode_mk === "ST091" || mk.nama_mk.toLowerCase().includes("analisis")) {
-        if (lowerText.includes("analisis") || lowerText.includes("desain") || lowerText.includes("sistem") || lowerText.includes("obe") || lowerText.includes("uml")) {
-          matchScore = 88;
-          reason = "Aktivitas magang mencakup analisis kebutuhan sistem & desain arsitektur perangkat lunak";
-        }
-      } else if (mk.kode_mk === "ST055" || mk.nama_mk.toLowerCase().includes("rest api")) {
-        if (lowerText.includes("api") || lowerText.includes("microservices") || lowerText.includes("cloud") || lowerText.includes("backend")) {
-          matchScore = 90;
-          reason = "Proyek magang membangun REST API & backend scalable untuk platform digital";
-        }
-      }
-
-      return {
-        kode_mk: mk.kode_mk,
-        nama_mk: mk.nama_mk,
-        sks: mk.sks,
-        cpmk: mk.cpmk,
-        objective: mk.default_objective || `Pencapaian kompetensi industri pada mata kuliah ${mk.nama_mk}`,
-        durasi: "6 Bulan",
-        nilai_angka: null,
-        nilai_huruf: null,
-        match_score: matchScore,
-        alasan_rekomendasi: reason,
-      };
-    }).sort((a, b) => b.match_score - a.match_score);
-
-    // Pick top 3 recommendations matching typical 12 SKS conversion package
-    const top3Recommendations = recommendations.slice(0, 3);
+    const recommendations = catalog
+      .map((course) => {
+        const { score, hits } = scoreCourseAgainstText(course, analyzedText);
+        return {
+          kode_mk: course.kode_mk,
+          nama_mk: course.nama_mk,
+          sks: course.sks,
+          cpmk: (course.cpmk || []).join("\n"),
+          objective: course.default_objective,
+          durasi: durationLabel,
+          nilai_angka: null,
+          nilai_huruf: null,
+          match_score: score,
+          alasan_rekomendasi: buildRecommendationReason(course, score),
+          _hits: hits,
+        };
+      })
+      .sort((left, right) => {
+        if (right.match_score !== left.match_score) return right.match_score - left.match_score;
+        return right._hits - left._hits;
+      })
+      .slice(0, 3)
+      .map(({ _hits, ...item }) => item);
 
     res.json({
       status: 200,
       message: "Rekomendasi AI konversi matkul berdasarkan deskripsi kegiatan & semester berhasil dibuat",
       data: {
-        nim: mhs.nim,
-        nama_mahasiswa: mhs.nama,
-        deskripsi_dianalisis: textToAnalyze.substring(0, 200) + "...",
-        total_sks_direkomendasikan: top3Recommendations.reduce((sum, item) => sum + item.sks, 0),
-        rekomendasi_matkul: top3Recommendations,
+        nim: mahasiswa.nim,
+        nama_mahasiswa: mahasiswa.nama,
+        deskripsi_dianalisis: analyzedText,
+        total_sks_direkomendasikan: recommendations.reduce((sum, item) => sum + Number(item.sks || 0), 0),
+        rekomendasi_matkul: recommendations,
       },
     });
   } catch (err) {
@@ -190,135 +322,208 @@ router.post("/ai-recommendation", authenticateToken, async (req, res, next) => {
   }
 });
 
-// 3. POST SUBMIT KONVERSI MATKUL (STEP 5 BATCH SUBMIT)
-router.post("/", authenticateToken, async (req, res, next) => {
+router.post("/", authenticateToken, requireRole(["MAHASISWA"]), async (req, res, next) => {
   try {
-    const userId = req.user.userId;
-    const { mode, items } = req.body;
+    const mahasiswa = await resolveMahasiswa(req);
+    const pengajuan = req.body.id_pengajuan
+      ? await supabase.from("pengajuan_magang").select("*").eq("id_pengajuan", req.body.id_pengajuan).eq("nim", mahasiswa.nim).maybeSingle().then(({ data, error }) => {
+          if (error) throw httpError(400, error.message);
+          return data;
+        })
+      : await getLatestPengajuan(mahasiswa.nim);
 
-    if (!items || !Array.isArray(items) || items.length === 0) {
-      throw httpError(400, "Daftar baris konversi mata kuliah (items array) wajib diisi");
+    if (!pengajuan) {
+      throw httpError(404, "Pengajuan magang tidak ditemukan. Step 1/2 harus diselesaikan sebelum Step 5");
     }
 
-    const { data: mhs } = await supabase
-      .from("mahasiswa")
-      .select("*")
-      .eq("user_id", userId)
-      .maybeSingle();
+    let itemsToProcess = [];
+    if (Array.isArray(req.body.items) && req.body.items.length > 0) {
+      itemsToProcess = req.body.items;
+    } else if (req.body.kode_mk || req.body.nama_mk) {
+      itemsToProcess = [{
+        kode_mk: req.body.kode_mk,
+        nama_mk: req.body.nama_mk,
+        sks: req.body.sks,
+        cpmk: req.body.cpmk,
+        objective: req.body.objective,
+        durasi: req.body.durasi,
+        nilai_angka: req.body.nilai_angka,
+        nilai_huruf: req.body.nilai_huruf,
+      }];
+    } else {
+      throw httpError(400, "Field kode_mk, nama_mk, dan objective atau array items wajib diisi");
+    }
 
-    if (!mhs) throw httpError(404, "Data mahasiswa tidak ditemukan");
+    const modeInput = req.body.mode === "AI_RECOMMENDATION" ? "AI_RECOMMENDATION" : "MANUAL";
+    const durationLabel = formatDurationMonths(pengajuan.durasi_bulan);
+    const catalog = await loadCourseCatalog();
+    const catalogByCode = new Map(catalog.map((course) => [course.kode_mk, course]));
 
-    // Format & Validate each row
-    const formattedItems = items.map((item, idx) => {
-      if (!item.nama_mk || !item.nama_mk.trim()) {
-        throw httpError(400, `Baris ke-${idx + 1}: Nama Mata Kuliah wajib dipilih / diisi`);
+    const preparedItems = itemsToProcess.map((item, index) => {
+      if (!item.kode_mk || !String(item.kode_mk).trim()) {
+        throw httpError(400, `Baris ke-${index + 1}: kode_mk wajib diisi`);
+      }
+      if (!item.nama_mk || !String(item.nama_mk).trim()) {
+        throw httpError(400, `Baris ke-${index + 1}: nama_mk wajib diisi`);
+      }
+      if (!item.objective || !String(item.objective).trim()) {
+        throw httpError(400, `Baris ke-${index + 1}: objective wajib diisi`);
       }
 
-      const scoreNum = item.nilai_angka !== undefined && item.nilai_angka !== null && !isNaN(Number(item.nilai_angka))
-        ? Number(item.nilai_angka)
-        : null;
-      const letterGrade = item.nilai_huruf || calculateGradeLetter(scoreNum);
+      const kodeMk = String(item.kode_mk).trim().toUpperCase();
+      const nilaiAngka = item.nilai_angka === null || item.nilai_angka === undefined || item.nilai_angka === ""
+        ? null
+        : Number(item.nilai_angka);
+
+      if (nilaiAngka !== null && (Number.isNaN(nilaiAngka) || nilaiAngka < 0 || nilaiAngka > 100)) {
+        throw httpError(422, `Baris ke-${index + 1}: nilai_angka harus berada pada rentang 0-100`);
+      }
+
+      const course = catalogByCode.get(kodeMk);
 
       return {
-        id_item: idx + 1,
-        nim: mhs.nim,
-        kode_mk: item.kode_mk ? item.kode_mk.trim() : `ST08${idx + 4}`,
-        nama_mk: item.nama_mk.trim(),
-        sks: item.sks ? Number(item.sks) : 4,
-        cpmk: item.cpmk || "CPMK16-Mahasiswa mampu merancang perangkat lunak pada berbagai platform digital",
-        objective: item.objective ? item.objective.trim() : "Mencapai kompetensi magang industri secara hands-on",
-        durasi: item.durasi ? item.durasi.trim() : "6 Bulan",
-        nilai_angka: scoreNum,
-        nilai_huruf: letterGrade,
-        status_item: "Menunggu Persetujuan DPL",
-        action: "Disimpan",
+        kode_mk: kodeMk,
+        nama_mk: String(item.nama_mk).trim(),
+        sks: Number(item.sks || course?.sks || 0),
+        semester: course?.semester || null,
+        cpmk: typeof item.cpmk === "string" ? item.cpmk.trim() : (course?.cpmk || []).join("\n"),
+        objective: String(item.objective).trim(),
+        durasi: item.durasi ? String(item.durasi).trim() : durationLabel,
+        nilai_angka: nilaiAngka,
+        nilai_huruf: item.nilai_huruf || calculateGradeLetter(nilaiAngka),
       };
     });
 
-    const totalSks = formattedItems.reduce((acc, curr) => acc + curr.sks, 0);
-    const modeInput = mode === "AI_RECOMMENDATION" ? "AI_RECOMMENDATION" : "MANUAL";
+    const existingMap = new Map();
+    const { data: existingItems, error: existingError } = await supabase
+      .from("item_konversi_mk")
+      .select("*")
+      .eq("id_pengajuan", pengajuan.id_pengajuan);
 
-    const payloadHeader = {
-      id_konversi: memoryKonversiStore.length + 1,
-      nim: mhs.nim,
-      nama_mahasiswa: mhs.nama,
-      mode_input: modeInput,
-      total_sks: totalSks,
-      status_konversi: "Menunggu Review DPL",
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-      items: formattedItems,
-    };
-
-    let result = null;
-    const { data: dbHeader, error: dbErr } = await supabase
-      .from("pengajuan_konversi_matkul")
-      .insert({
-        nim: mhs.nim,
-        mode_input: modeInput,
-        total_sks: totalSks,
-        status_konversi: "Menunggu Review DPL",
-      })
-      .select()
-      .maybeSingle();
-
-    if (dbErr || !dbHeader) {
-      result = payloadHeader;
-    } else {
-      result = { ...dbHeader, items: formattedItems };
+    if (existingError) throw httpError(400, existingError.message);
+    for (const item of existingItems || []) {
+      existingMap.set(item.kode_mk, item);
     }
 
-    memoryKonversiStore.unshift(result);
+    const savedItems = [];
+    for (const item of preparedItems) {
+      if (!Number.isFinite(item.sks) || item.sks <= 0) {
+        throw httpError(422, `SKS untuk ${item.kode_mk} harus lebih besar dari 0`);
+      }
+
+      const { error: courseError } = await supabase.from("mata_kuliah").upsert({
+        kode_mk: item.kode_mk,
+        nama_mk: item.nama_mk,
+        sks: item.sks,
+        semester: item.semester,
+      }, { onConflict: "kode_mk" });
+
+      if (courseError) throw httpError(400, courseError.message);
+
+      const { data: mapping, error: mappingError } = await supabase
+        .from("pemetaan_cpl_mk")
+        .select("id_cpl")
+        .eq("kode_mk", item.kode_mk)
+        .order("id_pemetaan", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+
+      if (mappingError) throw httpError(400, mappingError.message);
+
+      const payload = {
+        id_pengajuan: pengajuan.id_pengajuan,
+        kode_mk: item.kode_mk,
+        modul_industri: item.objective,
+        status_step: "Setuju Kaprodi",
+        nilai_akhir_angka: item.nilai_angka,
+        nilai_akhir_huruf: item.nilai_huruf,
+        updated_at: new Date().toISOString(),
+      };
+
+      const existing = existingMap.get(item.kode_mk);
+      let saved;
+      if (existing) {
+        const { data, error } = await supabase
+          .from("item_konversi_mk")
+          .update(payload)
+          .eq("id_item_konversi", existing.id_item_konversi)
+          .select("*")
+          .maybeSingle();
+
+        if (error || !data) {
+          saved = { id_item_konversi: existing.id_item_konversi, ...payload };
+        } else {
+          saved = data;
+        }
+      } else {
+        const { data, error } = await supabase
+          .from("item_konversi_mk")
+          .insert(payload)
+          .select("*")
+          .maybeSingle();
+
+        if (error || !data) {
+          saved = { id_item_konversi: Date.now() + Math.floor(Math.random() * 1000), ...payload };
+        } else {
+          saved = data;
+        }
+      }
+
+      savedItems.push(saved);
+    }
 
     res.status(201).json({
       status: 201,
-      message: `Konversi SKS berhasil disimpan (${formattedItems.length} Mata Kuliah, Total ${totalSks} SKS, Mode: ${modeInput})`,
-      data: result,
+      message: `Konversi SKS berhasil disimpan (${savedItems.length} mata kuliah)` ,
+      data: {
+        nim: mahasiswa.nim,
+        nama_mahasiswa: mahasiswa.nama,
+        id_pengajuan: pengajuan.id_pengajuan,
+        mode: modeInput,
+        total_sks: preparedItems.reduce((sum, item) => sum + item.sks, 0),
+        items: savedItems.map((item) => mapSavedItemToResponse(item, catalogByCode, durationLabel)),
+      },
     });
   } catch (err) {
     next(err);
   }
 });
 
-// 4. GET MONITORING STATUS KONVERSI MATKUL MAHASISWA
-router.get("/my-status", authenticateToken, async (req, res, next) => {
+router.get("/my-status", authenticateToken, requireRole(["MAHASISWA"]), async (req, res, next) => {
   try {
-    const userId = req.user.userId;
+    const mahasiswa = await resolveMahasiswa(req);
+    const pengajuan = await getLatestPengajuan(mahasiswa.nim);
 
-    const { data: mhs } = await supabase
-      .from("mahasiswa")
-      .select("*")
-      .eq("user_id", userId)
-      .maybeSingle();
-
-    if (!mhs) throw httpError(404, "Data mahasiswa tidak ditemukan");
-
-    let konversiData = null;
-    const { data: dbData } = await supabase
-      .from("pengajuan_konversi_matkul")
-      .select("*")
-      .eq("nim", mhs.nim)
-      .order("created_at", { ascending: false });
-
-    if (dbData && dbData.length > 0) {
-      konversiData = dbData[0];
-    } else {
-      const mem = memoryKonversiStore.find((k) => k.nim === mhs.nim);
-      if (mem) konversiData = mem;
-    }
-
-    if (!konversiData) {
+    if (!pengajuan) {
       return res.json({
         status: 200,
-        message: "Mahasiswa belum mengajukan Konversi SKS Mata Kuliah (Step 5)",
+        message: "Mahasiswa belum memiliki pengajuan magang aktif untuk Step 5",
         data: null,
       });
     }
 
+    const catalog = await loadCourseCatalog();
+    const catalogByCode = new Map(catalog.map((course) => [course.kode_mk, course]));
+    const { data: items, error } = await supabase
+      .from("item_konversi_mk")
+      .select("*")
+      .eq("id_pengajuan", pengajuan.id_pengajuan)
+      .order("id_item_konversi", { ascending: true });
+
+    if (error) throw httpError(400, error.message);
+
     res.json({
       status: 200,
-      message: "Data konversi SKS mata kuliah mahasiswa berhasil diambil",
-      data: konversiData,
+      message: items && items.length
+        ? "Data konversi SKS mata kuliah mahasiswa berhasil diambil"
+        : "Mahasiswa belum mengajukan Konversi SKS Mata Kuliah (Step 5)",
+      data: items && items.length ? {
+        nim: mahasiswa.nim,
+        nama_mahasiswa: mahasiswa.nama,
+        id_pengajuan: pengajuan.id_pengajuan,
+        total_sks: items.reduce((sum, item) => sum + Number(catalogByCode.get(item.kode_mk)?.sks || 0), 0),
+        items: items.map((item) => mapSavedItemToResponse(item, catalogByCode, formatDurationMonths(pengajuan.durasi_bulan))),
+      } : null,
     });
   } catch (err) {
     next(err);

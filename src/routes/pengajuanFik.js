@@ -716,15 +716,32 @@ router.get("/all-steps", authenticateToken, async (req, res, next) => {
 
     // Step 5: Fetch Konversi SKS Mata Kuliah
     let step5Data = null;
-    const { data: dbKonversi } = await supabase
-      .from("pengajuan_konversi_matkul")
-      .select("*")
-      .eq("nim", studentNim)
-      .order("created_at", { ascending: false });
 
-    if (dbKonversi && dbKonversi.length > 0) {
-      step5Data = dbKonversi[0];
-    } else {
+    if (step1Data && step1Data.id_pengajuan) {
+      const { data: dbItems } = await supabase
+        .from("item_konversi_mk")
+        .select("*")
+        .eq("id_pengajuan", step1Data.id_pengajuan);
+
+      if (dbItems && dbItems.length > 0) {
+        step5Data = {
+          id_konversi: step1Data.id_pengajuan,
+          total_sks: dbItems.length * 4,
+          mode_input: "AI_RECOMMENDATION",
+          status_konversi: "Setuju Kaprodi",
+          items: dbItems.map((item) => ({
+            kode_mk: item.kode_mk,
+            nama_mk: item.kode_mk,
+            sks: 4,
+            objective: item.modul_industri,
+            nilai_angka: item.nilai_akhir_angka,
+            nilai_huruf: item.nilai_akhir_huruf,
+          })),
+        };
+      }
+    }
+
+    if (!step5Data) {
       const memoryK = memoryKonversiStore.find((k) => k.nim === studentNim || (mhs && k.nim === mhs.nim));
       if (memoryK) step5Data = memoryK;
     }
