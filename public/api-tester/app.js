@@ -21,6 +21,19 @@ const endpointCatalog = [
   ["Dashboard Mitra", "POST", "/api/v1/mitra/penilaian", "5. Mitra Submit Penilaian Akhir Magang & Sertifikat (Post / Put)", { id_surat_akhir: 1, nim: "21.11.4001", nilai_mitra_angka: 92, nilai_mitra_huruf: "A", catatan_mitra: "Mahasiswa berkinerja luar biasa, sangat proaktif menguasai REST API & microservices.", sertifikat_magang_url: "https://drive.google.com/file/d/sertifikat_goto_budi.pdf" }],
   ["Dashboard Mitra", "POST", "/api/v1/mitra/submit-nilai", "6. Shortcut Mitra Submit Penilaian", { id_surat_akhir: 1, nim: "21.11.4001", nilai_mitra_angka: 95, catatan_mitra: "Kinerja sangat memuaskan." }],
 
+  // 👑 KATEGORI KHUSUS: DASHBOARD ADMIN KAPRODI
+  ["Dashboard Admin Kaprodi", "POST", "/api/v1/auth/login", "1. Login Admin Kaprodi (kaprodi.if@amikom.ac.id)", { identifier: "kaprodi.if@amikom.ac.id", password: "Admin#1234" }],
+  ["Dashboard Admin Kaprodi", "GET", "/api/v1/admin/dashboard-stats", "2. Executive Analytics & Dashboard Stats (Total Mhs, DPL, Mitra, MK, Progress Steps)", {}],
+  ["Dashboard Admin Kaprodi", "GET", "/api/v1/admin/mahasiswa", "3. Daftar & Monitoring Mahasiswa Konversi", {}],
+  ["Dashboard Admin Kaprodi", "GET", "/api/v1/admin/mahasiswa/21.11.4001", "4. Detail Data Mahasiswa (Profil, 5 Steps Progress, DPL & Mitra)", {}],
+  ["Dashboard Admin Kaprodi", "GET", "/api/v1/admin/dosen", "5. Daftar & Monitoring DPL (Beban Bimbingan & Status)", {}],
+  ["Dashboard Admin Kaprodi", "POST", "/api/v1/admin/create-dpl", "6. Tambah DPL Baru & Automated Email Kredensial", { nidn: "0519049003", nama: "Fitriani, M.T.", email: "fitriani@amikom.ac.id" }],
+  ["Dashboard Admin Kaprodi", "GET", "/api/v1/admin/mitra", "7. Daftar & Monitoring Mitra Industri (Mahasiswa Magang per Mitra)", {}],
+  ["Dashboard Admin Kaprodi", "POST", "/api/v1/admin/create-mitra", "8. Tambah Mitra Baru & Automated Email Kredensial", { nama_perusahaan: "PT Bukalapak.com Tbk", nama_supervisor: "Hendra Wijaya", email: "hendra.wijaya@bukalapak.com", bidang_usaha: "E-Commerce" }],
+  ["Dashboard Admin Kaprodi", "GET", "/api/v1/admin/mata-kuliah", "9. Master Data: Katalog Mata Kuliah & CPMK", {}],
+  ["Dashboard Admin Kaprodi", "POST", "/api/v1/admin/mata-kuliah", "10. Master Data: Tambah Mata Kuliah & Deskripsi CPMK Baru", { kode_mk: "ST120", nama_mk: "Cloud & Microservices Architecture", sks: 4, semester: 6, cpmk: "CPMK20-Mahasiswa mampu merancang arsitektur cloud & microservices skala besar", kategori: "Wajib Prodi" }],
+  ["Dashboard Admin Kaprodi", "GET", "/api/v1/admin/cpl-cpmk", "11. Master Data: Daftar CPL & CPMK", {}],
+
   // AUTENTIKASI & USER MANAGEMENT
   ["Autentikasi", "POST", "/api/v1/auth/register-mahasiswa", "Registrasi Mahasiswa Mandiri", { nim: "21.11.4005", nama: "Rizky Ramadhan", email: "rizky.ramadhan@students.amikom.ac.id", password: "Password123" }],
   ["Autentikasi", "POST", "/api/v1/auth/login", "Login Mahasiswa (NIM)", { identifier: "21.11.4001", password: "Budi#1234" }],

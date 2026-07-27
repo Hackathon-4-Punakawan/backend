@@ -21,6 +21,7 @@ input:focus,select:focus,textarea:focus { border-color:#688044; box-shadow:0 0 0
 .pill { padding:4px 9px; border:1px solid var(--line); border-radius:12px; background:rgba(255,255,255,0.03); color:var(--muted); font-size:10px; font-weight:700; cursor:pointer; transition:all 0.15s ease; }
 .pill:hover { color:var(--ink); border-color:#53635b; }
 .pill.active { background:var(--acid); color:#10150e; border-color:var(--acid); }
+.pill.pill-admin.active { background:#eab308; color:#0f172a; border-color:#fde047; }
 .pill.pill-dpl.active { background:#0284c7; color:#ffffff; border-color:#38bdf8; }
 .pill.pill-mitra.active { background:#16a34a; color:#ffffff; border-color:#4ade80; }
 .group-title { padding:18px 20px 7px; color:#66736c; font:700 10px ui-monospace,monospace; letter-spacing:.14em; text-transform:uppercase; }
