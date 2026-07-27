@@ -4,6 +4,8 @@ const { authenticateToken, requireRole } = require("../middleware/auth");
 
 const router = express.Router();
 
+const AUTO_ACC_DELAY_MS = 5000;
+
 // Fallback in-memory store for cover letters if database schema cache is missing table
 const memorySuratStore = [];
 
@@ -40,6 +42,31 @@ function calculateMonthPeriod(startDateStr, endDateStr) {
   }
   months = Math.max(1, months);
   return `${months} Bulan`;
+}
+
+// Function to trigger auto-ACC for a given Surat Pengantar ID after 5 seconds
+async function triggerAutoAccSuratPengantar(idSurat, idMagang) {
+  try {
+    const pdfUrl = `https://fik.amikom.ac.id/surat/SURAT-PENGANTAR-${idMagang}.pdf`;
+    await supabase
+      .from("surat_pengantar_magang")
+      .update({
+        status_surat: "Disetujui",
+        surat_pengantar_url: pdfUrl,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id_surat", idSurat);
+
+    // Update in-memory store if present
+    const storeItem = memorySuratStore.find((s) => s.id_surat === idSurat);
+    if (storeItem) {
+      storeItem.status_surat = "Disetujui";
+      storeItem.surat_pengantar_url = pdfUrl;
+    }
+    console.log(`✅ Auto-ACC Surat Pengantar FIK berhasil untuk ID #${idSurat}`);
+  } catch (err) {
+    console.error(`⚠️ Gagal Auto-ACC Surat Pengantar ID #${idSurat}:`, err.message);
+  }
 }
 
 // 1. GET HELPER INFO FOR STEP 3 FORM (AUTO-POPULATED FROM STEP 1 & 2)
@@ -95,7 +122,7 @@ router.get("/helper-info", authenticateToken, async (req, res, next) => {
   }
 });
 
-// 2. SUBMIT PENGAJUAN SURAT PENGANTAR (MAHASISWA STEP 3)
+// 2. SUBMIT PENGAJUAN SURAT PENGANTAR (MAHASISWA STEP 3) WITH 5-SECOND AUTO-ACC
 router.post("/", authenticateToken, requireRole(["MAHASISWA"]), async (req, res, next) => {
   try {
     const userId = req.user.userId;
@@ -134,8 +161,10 @@ router.post("/", authenticateToken, requireRole(["MAHASISWA"]), async (req, res,
     const finalTujuanSurat = tujuan_surat || latestPengajuan?.tujuan_surat || "Kepada Yth. Pimpinan Instansi";
     const defaultSuratPdfUrl = `https://fik.amikom.ac.id/surat/SURAT-PENGANTAR-${finalIdMagang}.pdf`;
 
+    const newSuratId = memorySuratStore.length + 1;
+
     const payload = {
-      id_surat: memorySuratStore.length + 1,
+      id_surat: newSuratId,
       id_pengajuan: latestPengajuan?.id_pengajuan || null,
       id_proposal: latestProposal?.id_proposal || null,
       nim: mhs.nim,
@@ -147,8 +176,8 @@ router.post("/", authenticateToken, requireRole(["MAHASISWA"]), async (req, res,
       nama_instansi: latestProposal?.nama_instansi || latestPengajuan?.nama_instansi || "-",
       alamat_instansi: latestProposal?.alamat_instansi || latestPengajuan?.alamat_instansi || "-",
       tujuan_surat: finalTujuanSurat,
-      status_surat: "Disetujui",
-      surat_pengantar_url: defaultSuratPdfUrl,
+      status_surat: "Diproses Fakultas",
+      surat_pengantar_url: null,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
       mahasiswa: {
@@ -162,7 +191,10 @@ router.post("/", authenticateToken, requireRole(["MAHASISWA"]), async (req, res,
     let data = null;
     const { data: directData, error: directErr } = await supabase
       .from("surat_pengantar_magang")
-      .insert(payload)
+      .insert({
+        ...payload,
+        status_surat: "Diproses Fakultas",
+      })
       .select()
       .maybeSingle();
 
@@ -174,16 +206,29 @@ router.post("/", authenticateToken, requireRole(["MAHASISWA"]), async (req, res,
       memorySuratStore.unshift(data);
     }
 
+    const createdId = data.id_surat || newSuratId;
+
+    // Schedule 5-second Auto-ACC simulation background timer
+    setTimeout(() => {
+      triggerAutoAccSuratPengantar(createdId, finalIdMagang);
+    }, AUTO_ACC_DELAY_MS);
+
     res.status(201).json({
-      message: "Surat pengantar magang FIK berhasil diajukan dan diterbitkan",
-      data,
+      message: "Pengajuan surat pengantar magang FIK berhasil dikirim. Layanan akan diproses otomatis dalam 5 detik.",
+      data: {
+        ...data,
+        tracking: {
+          web_fik_url: "https://fik.amikom.ac.id/page/status-pengajuan-layanan",
+          telegram_bot_url: "http://t.me/AMIKOMFakultasbot",
+        },
+      },
     });
   } catch (err) {
     next(err);
   }
 });
 
-// 3. GET MY SURAT PENGANTAR STATUS (MAHASISWA)
+// 3. GET MY SURAT PENGANTAR STATUS (MAHASISWA) WITH EAGER 5-SECOND EVALUATION
 router.get("/my-status", authenticateToken, async (req, res, next) => {
   try {
     const userId = req.user.userId;
@@ -198,20 +243,48 @@ router.get("/my-status", authenticateToken, async (req, res, next) => {
       throw httpError(404, "Profil mahasiswa tidak ditemukan");
     }
 
-    const { data: list, error: errList } = await supabase
+    let rawList = [];
+    const { data: dbList, error: errList } = await supabase
       .from("surat_pengantar_magang")
       .select("*")
       .eq("nim", mhs.nim)
       .order("created_at", { ascending: false });
 
-    if (!errList && list && list.length > 0) {
-      return res.json({ data: list });
+    if (!errList && dbList && dbList.length > 0) {
+      rawList = dbList;
+    } else {
+      rawList = memorySuratStore.filter((s) => s.nim === mhs.nim || s.email_mahasiswa === mhs.email);
     }
 
-    // Fallback from in-memory store
-    const userSuratList = memorySuratStore.filter((s) => s.nim === mhs.nim || s.email_mahasiswa === mhs.email);
+    const now = new Date();
+    const formattedList = rawList.map((item) => {
+      const parsedDate = item.created_at ? new Date(item.created_at) : null;
+      const createdAt = parsedDate && !isNaN(parsedDate.getTime()) ? parsedDate : now;
+      const ageMs = Math.max(0, now.getTime() - createdAt.getTime());
+      const rawStatus = item.status_surat || "Diproses Fakultas";
+
+      const isAutoApproved = rawStatus === "Disetujui" || ageMs >= AUTO_ACC_DELAY_MS;
+      const finalStatus = isAutoApproved ? "Disetujui" : "Diproses Fakultas";
+      const officialIdMagang = item.id_magang_fakultas || "FIK6199364";
+      const defaultSuratUrl = item.surat_pengantar_url || `https://fik.amikom.ac.id/surat/SURAT-PENGANTAR-${officialIdMagang}.pdf`;
+
+      if (rawStatus !== "Disetujui" && ageMs >= AUTO_ACC_DELAY_MS) {
+        triggerAutoAccSuratPengantar(item.id_surat, officialIdMagang);
+      }
+
+      return {
+        ...item,
+        status_surat: finalStatus,
+        surat_pengantar_url: isAutoApproved ? defaultSuratUrl : item.surat_pengantar_url,
+        tracking: {
+          web_fik_url: "https://fik.amikom.ac.id/page/status-pengajuan-layanan",
+          telegram_bot_url: "http://t.me/AMIKOMFakultasbot",
+        },
+      };
+    });
+
     res.json({
-      data: userSuratList,
+      data: formattedList,
     });
   } catch (err) {
     next(err);
