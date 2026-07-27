@@ -108,7 +108,7 @@ Untuk menampilkan seluruh riwayat dan status perkembangan mahasiswa dalam 1 tamp
       {
         "id": "step1-13",
         "step": 1,
-        "jenis_pengajuan": "Magang Mandiri",
+        "jenis_pengajuan": "Pengajuan ID Magang",
         "sub_info": "Semester 6 - 2026/2027",
         "nama_instansi": "PT Amikom Tech Digital (Fullstack Engineer Intern)",
         "kepada_yth": "-",
@@ -120,7 +120,7 @@ Untuk menampilkan seluruh riwayat dan status perkembangan mahasiswa dalam 1 tamp
       {
         "id": "step2-3",
         "step": 2,
-        "jenis_pengajuan": "Proposal Magang Mandiri",
+        "jenis_pengajuan": "Pengajuan Proposal ke Prodi",
         "sub_info": "Durasi: 01.08.2026 sampai dengan 31.01.2027",
         "nama_instansi": "PT Amikom Tech Digital",
         "kepada_yth": "Admin Kaprodi Informatika",
@@ -143,7 +143,7 @@ Untuk menampilkan seluruh riwayat dan status perkembangan mahasiswa dalam 1 tamp
       {
         "id": "step4-1",
         "step": 4,
-        "jenis_pengajuan": "Pengajuan Dosen Pembimbing Magang",
+        "jenis_pengajuan": "Pengajuan Dosen Pembimbing",
         "sub_info": "SKS Ditempuh: 110 SKS",
         "nama_instansi": "DPL: Drs. Kusrini, M.Kom.",
         "kepada_yth": "ID Magang: FIK6199373",
@@ -156,7 +156,7 @@ Untuk menampilkan seluruh riwayat dan status perkembangan mahasiswa dalam 1 tamp
       {
         "id": "step5-13",
         "step": 5,
-        "jenis_pengajuan": "Konversi SKS Mata Kuliah (12 SKS)",
+        "jenis_pengajuan": "Pengajuan Konversi",
         "sub_info": "Mode: Rekomendasi AI | DPL: Drs. Kusrini, M.Kom.",
         "nama_instansi": "Mata Kuliah: ST116, ST091, ST084",
         "kepada_yth": "Total: 12 SKS",

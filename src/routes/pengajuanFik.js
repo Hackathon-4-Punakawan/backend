@@ -658,7 +658,7 @@ router.get("/all-steps", authenticateToken, async (req, res, next) => {
       riwayatPengajuan.push({
         id: `step1-${step1Formatted.id_pengajuan}`,
         step: 1,
-        jenis_pengajuan: step1Formatted.jenis_surat_fakultas || step1Formatted.jenis_program || "Pengajuan ID Magang",
+        jenis_pengajuan: "Pengajuan ID Magang",
         sub_info: `Semester ${step1Formatted.semester || 6} - ${step1Formatted.tahun_akademik || "2026/2027"}`,
         nama_instansi: step1Formatted.nama_instansi || step1Formatted.posisi || "-",
         kepada_yth: step1Formatted.tujuan_surat ? `Kepada: ${step1Formatted.tujuan_surat}` : "-",
@@ -673,7 +673,7 @@ router.get("/all-steps", authenticateToken, async (req, res, next) => {
       riwayatPengajuan.push({
         id: `step2-${step2Data.id_proposal || 1}`,
         step: 2,
-        jenis_pengajuan: "Pengajuan Proposal Magang",
+        jenis_pengajuan: "Pengajuan Proposal ke Prodi",
         sub_info: `Program: ${step2Data.program_diikuti || "Magang Mandiri"}`,
         nama_instansi: step2Data.nama_instansi || "-",
         kepada_yth: `Durasi: ${step2Data.durasi_pelaksanaan || "6 Bulan"}`,
@@ -688,7 +688,7 @@ router.get("/all-steps", authenticateToken, async (req, res, next) => {
       riwayatPengajuan.push({
         id: `step3-${step3Data?.id_surat || 1}`,
         step: 3,
-        jenis_pengajuan: "Pengajuan Surat Pengantar Magang",
+        jenis_pengajuan: "Pengajuan Surat Pengantar Magang FIK",
         sub_info: `Periode: ${step3Formatted.periode_magang || "6 Bulan"}`,
         nama_instansi: step1Formatted?.nama_instansi || step2Data?.nama_instansi || "-",
         kepada_yth: `ID Magang: ${step3Formatted.id_magang}`,
@@ -702,7 +702,7 @@ router.get("/all-steps", authenticateToken, async (req, res, next) => {
       riwayatPengajuan.push({
         id: `step4-${step4Formatted.id_pengajuan_dpl || 1}`,
         step: 4,
-        jenis_pengajuan: "Pengajuan Dosen Pembimbing Magang",
+        jenis_pengajuan: "Pengajuan Dosen Pembimbing",
         sub_info: `SKS Ditempuh: ${step4Formatted.sks_ditempuh} SKS`,
         nama_instansi: `DPL: ${step4Formatted.nama_dpl}`,
         kepada_yth: `ID Magang: ${step4Formatted.id_magang}`,
@@ -754,7 +754,7 @@ router.get("/all-steps", authenticateToken, async (req, res, next) => {
       riwayatPengajuan.push({
         id: `step5-${step5Data.id_konversi || 1}`,
         step: 5,
-        jenis_pengajuan: `Konversi SKS Mata Kuliah (${step5Data.total_sks || 12} SKS)`,
+        jenis_pengajuan: "Pengajuan Konversi",
         sub_info: `Mode: ${step5Data.mode_input === "AI_RECOMMENDATION" ? "Rekomendasi AI" : "Manual"}`,
         nama_instansi: `Mata Kuliah: ${matkulNames}`,
         kepada_yth: `Total: ${step5Data.total_sks || 12} SKS`,
