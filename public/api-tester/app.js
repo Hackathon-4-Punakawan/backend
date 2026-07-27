@@ -59,8 +59,14 @@ const endpointCatalog = [
   ["Step 4 Dosen Pembimbing", "GET", "/api/v1/pengajuan-dpl/my-status", "Monitoring Status Pengajuan DPL (Plotting & SK Link)"],
   ["Step 4 Dosen Pembimbing", "GET", "/api/v1/pengajuan-dpl/admin/list", "Daftar Pengajuan DPL (Admin/Kaprodi Dashboard)"],
 
-  // GABUNGAN MONITORING GABUNGAN ALL STEPS (1, 2, 3, 4)
-  ["Summary All Steps", "GET", "/api/v1/pengajuan-fik/all-steps", "GET All Steps 1, 2, 3, & 4 Unified Data & Dashboard Array"],
+  // KONVERSI SKS MATA KULIAH (STEP 5) - MANUAL & AI RECOMMENDATION
+  ["Step 5 Konversi SKS", "GET", "/api/v1/konversi-matkul/catalog", "Katalog Mata Kuliah untuk Input Manual (Auto Kode, SKS, CPMK)"],
+  ["Step 5 Konversi SKS", "POST", "/api/v1/konversi-matkul/ai-recommendation", "Rekomendasi AI Konversi (Cocokkan Deskripsi Magang & Semester)"],
+  ["Step 5 Konversi SKS", "POST", "/api/v1/konversi-matkul", "Submit Tabel Konversi SKS Matkul (Batch Items - Screenshot Layout)", { mode: "AI_RECOMMENDATION", items: [{ kode_mk: "ST084", nama_mk: "Pemrograman Web", sks: 4, cpmk: "CPMK16-Mahasiswa mampu merancang perangkat lunak pada berbagai platform digital", objective: "Memulai Dasar Pemrograman Web. 1. Meneliti, merancang, dan membangun web app.", durasi: "6 Bulan", nilai_angka: 88, nilai_huruf: "A" }, { kode_mk: "ST116", nama_mk: "Pemrograman Basis Data", sks: 4, cpmk: "CPMK15-Mahasiswa mampu menganalisis perangkat lunak pada berbagai platform digital", objective: "Belajar Fundamen Database. 1. Menerapkan Microservices, SQL query, dan database.", durasi: "6 Bulan", nilai_angka: 85, nilai_huruf: "A" }, { kode_mk: "ST091", nama_mk: "Analisis dan Desain Sistem Informasi", sks: 4, cpmk: "CPMK11-Mahasiswa mampu menghasilkan produk ekonomi kreatif digital dalam bidang informatika", objective: "Memulai Dasar Perancangan Sistem. 1. Meneliti, menganalisis sistem, UML diagram.", durasi: "6 Bulan", nilai_angka: 82, nilai_huruf: "A-" }] }],
+  ["Step 5 Konversi SKS", "GET", "/api/v1/konversi-matkul/my-status", "Monitoring Status Tabel Konversi SKS (Mahasiswa)"],
+
+  // GABUNGAN MONITORING GABUNGAN ALL STEPS (1, 2, 3, 4, 5)
+  ["Summary All Steps", "GET", "/api/v1/pengajuan-fik/all-steps", "GET All Steps 1, 2, 3, 4, & 5 Unified Data & Dashboard Array"],
   ["Summary All Steps", "GET", "/api/v1/pengajuan-fik/history", "GET Riwayat Dashboard Mahasiswa (Tabel Display Format)"],
   
   // KONVERSI & PENILAIAN (70:30)

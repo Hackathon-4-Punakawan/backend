@@ -9,7 +9,7 @@ const JENIS_PENGAJUAN_VALID = ["Pengajuan ID Magang", "Pra Survey Magang", "Id M
 const FIK_WEB_STATUS_URL = "https://fik.amikom.ac.id/page/status-pengajuan-layanan";
 const FIK_TELEGRAM_BOT_URL = "http://t.me/AMIKOMFakultasbot";
 const AUTO_ACC_DELAY_MS = 5000; // 5 Detik Auto-ACC Simulasi FIK
-const { memoryProposalStore, memorySuratStore, memoryDplStore } = require("../utils/sharedStore");
+const { memoryProposalStore, memorySuratStore, memoryDplStore, memoryKonversiStore } = require("../utils/sharedStore");
 
 const BULAN_INDONESIA = [
   "Januari", "Februari", "Maret", "April", "Mei", "Juni",
@@ -714,11 +714,45 @@ router.get("/all-steps", authenticateToken, async (req, res, next) => {
       });
     }
 
+    // Step 5: Fetch Konversi SKS Mata Kuliah
+    let step5Data = null;
+    const { data: dbKonversi } = await supabase
+      .from("pengajuan_konversi_matkul")
+      .select("*")
+      .eq("nim", studentNim)
+      .order("created_at", { ascending: false });
+
+    if (dbKonversi && dbKonversi.length > 0) {
+      step5Data = dbKonversi[0];
+    } else {
+      const memoryK = memoryKonversiStore.find((k) => k.nim === studentNim || (mhs && k.nim === mhs.nim));
+      if (memoryK) step5Data = memoryK;
+    }
+
+    if (step5Data) {
+      const matkulNames = (step5Data.items && Array.isArray(step5Data.items))
+        ? step5Data.items.map((i) => i.nama_mk).join(", ")
+        : "Matkul Konversi";
+
+      riwayatPengajuan.push({
+        id: `step5-${step5Data.id_konversi || 1}`,
+        step: 5,
+        jenis_pengajuan: `Konversi SKS Mata Kuliah (${step5Data.total_sks || 12} SKS)`,
+        sub_info: `Mode: ${step5Data.mode_input === "AI_RECOMMENDATION" ? "Rekomendasi AI" : "Manual"}`,
+        nama_instansi: `Mata Kuliah: ${matkulNames}`,
+        kepada_yth: `Total: ${step5Data.total_sks || 12} SKS`,
+        tanggal_pengajuan: formatIndonesianDate(step5Data.created_at || now),
+        status: (step5Data.status_konversi || "MENUNGGU REVIEW DPL").toUpperCase(),
+        items: step5Data.items || [],
+      });
+    }
+
     let currentStep = 1;
     if (step1Formatted && step1Formatted.status_surat_fakultas === "Disetujui") currentStep = 2;
     if (step2Data) currentStep = 3;
     if (step3Formatted && step3Formatted.status_surat === "Disetujui") currentStep = 4;
     if (step4Formatted) currentStep = 5;
+    if (step5Data) currentStep = 6;
 
     res.json({
       status: 200,

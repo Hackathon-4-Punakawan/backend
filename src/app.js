@@ -10,6 +10,7 @@ const pengajuanFikRouter = require("./routes/pengajuanFik");
 const proposalMagangRouter = require("./routes/proposalMagang");
 const suratPengantarRouter = require("./routes/suratPengantar");
 const pengajuanDplRouter = require("./routes/pengajuanDpl");
+const konversiMatkulRouter = require("./routes/konversiMatkul");
 
 const app = express();
 
@@ -39,6 +40,7 @@ app.use("/api/v1/pengajuan-fik", pengajuanFikRouter);
 app.use("/api/v1/proposal-magang", proposalMagangRouter);
 app.use("/api/v1/surat-pengantar", suratPengantarRouter);
 app.use("/api/v1/pengajuan-dpl", pengajuanDplRouter);
+app.use("/api/v1/konversi-matkul", konversiMatkulRouter);
 app.use("/api/v1", apiRouter);
 
 app.use((req, res) => {
