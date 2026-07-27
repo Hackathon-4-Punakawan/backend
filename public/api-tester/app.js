@@ -72,6 +72,8 @@ const endpointCatalog = [
   ["Surat Akhir Magang", "GET", "/api/v1/surat-akhir-magang/helper-info", "Get Prefilled Automatic Fields (Email, Tgl Mulai, Tgl Berakhir, Periode)"],
   ["Surat Akhir Magang", "POST", "/api/v1/surat-akhir-magang", "Submit Pengajuan Surat Akhir & Ucapan Terima Kasih FIK", { id_magang: "FIK6199373", tanggal_mulai_magang: "01 Agustus 2026", tanggal_berakhir_magang: "31 Januari 2027", periode_magang: "6 Bulan" }],
   ["Surat Akhir Magang", "GET", "/api/v1/surat-akhir-magang/my-status", "Monitoring Status Surat Akhir & Link Download PDF Terima Kasih FIK"],
+  ["Surat Akhir Magang", "GET", "/api/v1/surat-akhir-magang/mitra/list", "Daftar Surat Ucapan Terima Kasih Masuk ke Dashboard Mitra"],
+  ["Surat Akhir Magang", "POST", "/api/v1/surat-akhir-magang/mitra/submit-nilai", "Mitra Input Penilaian & Evaluasi Kinerja Mahasiswa", { id_surat_akhir: 1, nilai_mitra_angka: 92, nilai_mitra_huruf: "A", catatan_mitra: "Mahasiswa sangat proaktif, disiplin, dan terampil menguasai teknologi REST API serta sistem basis data.", sertifikat_magang_url: "https://drive.google.com/file/d/sertifikat_magang_budi.pdf" }],
   ["Surat Akhir Magang", "GET", "/api/v1/surat-akhir-magang/admin/list", "Daftar Pengajuan Surat Akhir FIK (Admin Dashboard)"],
 
   // GABUNGAN MONITORING GABUNGAN ALL STEPS (1, 2, 3, 4, 5)

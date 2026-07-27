@@ -1,10 +1,8 @@
 const express = require("express");
 const supabase = require("../config/supabase");
 const { authenticateToken, requireRole } = require("../middleware/auth");
-const { memorySuratStore } = require("../utils/sharedStore");
 
 const router = express.Router();
-const AUTO_ACC_DELAY_MS = 5000;
 
 function httpError(status, message) {
   const error = new Error(message);
@@ -17,6 +15,18 @@ const memorySuratAkhirStore = [];
 function generateThankYouLetterUrl(idMagang) {
   const cleanId = String(idMagang || "FIK6199364").trim();
   return `https://fik.amikom.ac.id/surat/SURAT-UCAPAN-TERIMA-KASIH-${cleanId}.pdf`;
+}
+
+function calculateGradeLetter(score) {
+  if (score >= 85) return "A";
+  if (score >= 80) return "A-";
+  if (score >= 75) return "B+";
+  if (score >= 70) return "B";
+  if (score >= 65) return "B-";
+  if (score >= 60) return "C+";
+  if (score >= 55) return "C";
+  if (score >= 40) return "D";
+  return "E";
 }
 
 // 1. GET HELPER INFO FOR SURAT AKHIR (PREFILL AUTOMATIC FIELDS)
@@ -75,7 +85,7 @@ router.get("/helper-info", authenticateToken, async (req, res, next) => {
   }
 });
 
-// 2. SUBMIT / EDIT PENGAJUAN SURAT AKHIR & UCAPAN TERIMA KASIH MAGANG FIK
+// 2. SUBMIT / EDIT PENGAJUAN SURAT AKHIR & UCAPAN TERIMA KASIH MAGANG FIK (MAHASISWA)
 const handleSaveSuratAkhir = async (req, res, next) => {
   try {
     const userId = req.user.userId;
@@ -115,6 +125,11 @@ const handleSaveSuratAkhir = async (req, res, next) => {
       periode_magang: periode,
       status_surat: "Disetujui",
       surat_terima_kasih_url: pdfUrl,
+      status_penilaian_mitra: "Belum Dinilai",
+      nilai_mitra_angka: null,
+      nilai_mitra_huruf: null,
+      catatan_mitra: null,
+      sertifikat_magang_url: null,
       created_at: nowIso,
       updated_at: nowIso,
     };
@@ -132,12 +147,17 @@ const handleSaveSuratAkhir = async (req, res, next) => {
       result = dbData;
     }
 
-    memorySuratAkhirStore.unshift(result);
+    // Upsert to memory store
+    const existingIndex = memorySuratAkhirStore.findIndex((s) => s.nim === mhs.nim);
+    if (existingIndex >= 0) {
+      memorySuratAkhirStore[existingIndex] = { ...memorySuratAkhirStore[existingIndex], ...result };
+    } else {
+      memorySuratAkhirStore.unshift(result);
+    }
 
-    // Auto-ACC simulation response in 5 seconds
     res.status(201).json({
       status: 201,
-      message: "Pengajuan Surat Akhir dan Ucapan Terima Kasih Magang FIK berhasil dikirim. Surat resmi FIK akan terbit dalam 5 detik.",
+      message: "Pengajuan Surat Akhir dan Ucapan Terima Kasih Magang FIK berhasil dikirim. Surat resmi otomatis diteruskan ke Dashboard Mitra.",
       data: {
         id_surat_akhir: result.id_surat_akhir || 1,
         email: email,
@@ -150,6 +170,7 @@ const handleSaveSuratAkhir = async (req, res, next) => {
         periode_magang: periode,
         status_surat: "Disetujui",
         surat_terima_kasih_url: pdfUrl,
+        status_penilaian_mitra: result.status_penilaian_mitra || "Belum Dinilai",
         auto_acc_in_seconds: 5,
         created_at: nowIso,
       },
@@ -162,7 +183,7 @@ const handleSaveSuratAkhir = async (req, res, next) => {
 router.post("/", authenticateToken, requireRole(["MAHASISWA"]), handleSaveSuratAkhir);
 router.put("/", authenticateToken, requireRole(["MAHASISWA"]), handleSaveSuratAkhir);
 
-// 3. GET MONITORING STATUS SURAT AKHIR MAHASISWA
+// 3. GET MONITORING STATUS SURAT AKHIR (MAHASISWA VIEW)
 router.get("/my-status", authenticateToken, requireRole(["MAHASISWA"]), async (req, res, next) => {
   try {
     const userId = req.user.userId;
@@ -207,7 +228,162 @@ router.get("/my-status", authenticateToken, requireRole(["MAHASISWA"]), async (r
   }
 });
 
-// 4. GET ALL SURAT AKHIR (ADMIN / DEKAN DASHBOARD)
+// 4. GET DAFTAR SURAT AKHIR & UCAPAN TERIMA KASIH (DASHBOARD MITRA)
+router.get("/mitra/list", authenticateToken, requireRole(["MITRA", "ADMIN_PRODI", "DEKAN"]), async (req, res, next) => {
+  try {
+    const { data: dbData } = await supabase
+      .from("surat_akhir_magang")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    const rawList = dbData && dbData.length > 0 ? dbData : memorySuratAkhirStore;
+
+    // Enhance with student profile information
+    const { data: students } = await supabase.from("mahasiswa").select("*");
+    const { data: pengajuans } = await supabase.from("pengajuan_magang").select("*");
+
+    const studentMap = new Map((students || []).map((s) => [s.nim, s]));
+    const pengajuanMap = new Map((pengajuans || []).map((p) => [p.nim, p]));
+
+    const enrichedList = rawList.map((item) => {
+      const mhs = studentMap.get(item.nim) || {};
+      const pengajuan = pengajuanMap.get(item.nim) || {};
+
+      return {
+        id_surat_akhir: item.id_surat_akhir,
+        id_pengajuan: item.id_pengajuan,
+        nim: item.nim,
+        nama_mahasiswa: mhs.nama || "Budi Santoso",
+        email: item.email || mhs.email || "budi.santoso@students.amikom.ac.id",
+        prodi: mhs.prodi || "Informatika",
+        id_magang_fakultas: item.id_magang_fakultas || pengajuan.id_magang_fakultas || "FIK6199373",
+        nama_instansi: pengajuan.nama_instansi || "PT Amikom Tech Digital",
+        posisi: pengajuan.posisi || "Fullstack Developer Intern",
+        tanggal_mulai_magang: item.tanggal_mulai_magang,
+        tanggal_berakhir_magang: item.tanggal_berakhir_magang,
+        periode_magang: item.periode_magang,
+        surat_terima_kasih_url: item.surat_terima_kasih_url,
+        status_penilaian_mitra: item.status_penilaian_mitra || "Belum Dinilai",
+        nilai_mitra: {
+          nilai_angka: item.nilai_mitra_angka ?? null,
+          nilai_huruf: item.nilai_mitra_huruf ?? null,
+          catatan_mitra: item.catatan_mitra ?? null,
+          sertifikat_magang_url: item.sertifikat_magang_url ?? null,
+        },
+        created_at: item.created_at,
+      };
+    });
+
+    res.json({
+      status: 200,
+      message: "Daftar Surat Ucapan Terima Kasih Magang masuk ke Dashboard Mitra berhasil diambil",
+      data: enrichedList,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// 5. POST / PUT MITRA SUBMIT PENILAIAN & EVALUASI KINERJA MAHASISWA
+const handleSubmitNilaiMitra = async (req, res, next) => {
+  try {
+    const { id_surat_akhir, nim, nilai_mitra_angka, nilai_mitra_huruf, catatan_mitra, sertifikat_magang_url } = req.body;
+
+    if (!id_surat_akhir && !nim) {
+      throw httpError(400, "Wajib menyertakan id_surat_akhir atau nim mahasiswa");
+    }
+
+    if (nilai_mitra_angka === undefined || nilai_mitra_angka === null || nilai_mitra_angka === "") {
+      throw httpError(400, "nilai_mitra_angka wajib diisi oleh Mitra Industri");
+    }
+
+    const scoreNum = Number(nilai_mitra_angka);
+    if (isNaN(scoreNum) || scoreNum < 0 || scoreNum > 100) {
+      throw httpError(400, "nilai_mitra_angka harus berupa angka antara 0 - 100");
+    }
+
+    const finalLetter = nilai_mitra_huruf || calculateGradeLetter(scoreNum);
+    const feedback = catatan_mitra || "Mahasiswa menunjukkan kinerja magang yang sangat baik, proaktif, dan disiplin.";
+    const certUrl = sertifikat_magang_url || `https://drive.google.com/file/d/sertifikat_magang_${nim || "budi"}.pdf`;
+    const nowIso = new Date().toISOString();
+
+    const updatePayload = {
+      status_penilaian_mitra: "Sudah Dinilai Mitra",
+      nilai_mitra_angka: scoreNum,
+      nilai_mitra_huruf: finalLetter,
+      catatan_mitra: feedback,
+      sertifikat_magang_url: certUrl,
+      updated_at: nowIso,
+    };
+
+    let updatedRow = null;
+
+    // Update in database if exists
+    if (id_surat_akhir) {
+      const { data } = await supabase
+        .from("surat_akhir_magang")
+        .update(updatePayload)
+        .eq("id_surat_akhir", id_surat_akhir)
+        .select()
+        .maybeSingle();
+      updatedRow = data;
+    } else if (nim) {
+      const { data } = await supabase
+        .from("surat_akhir_magang")
+        .update(updatePayload)
+        .eq("nim", nim)
+        .select()
+        .maybeSingle();
+      updatedRow = data;
+    }
+
+    // Update in memory store
+    const memIndex = memorySuratAkhirStore.findIndex(
+      (s) => (id_surat_akhir && s.id_surat_akhir === id_surat_akhir) || (nim && s.nim === nim)
+    );
+
+    if (memIndex >= 0) {
+      memorySuratAkhirStore[memIndex] = {
+        ...memorySuratAkhirStore[memIndex],
+        ...updatePayload,
+      };
+      if (!updatedRow) updatedRow = memorySuratAkhirStore[memIndex];
+    }
+
+    if (!updatedRow) {
+      updatedRow = {
+        id_surat_akhir: id_surat_akhir || 1,
+        nim: nim || "21.11.4001",
+        ...updatePayload,
+      };
+      memorySuratAkhirStore.unshift(updatedRow);
+    }
+
+    res.json({
+      status: 200,
+      message: "Penilaian & evaluasi kinerja magang mahasiswa dari Mitra Industri berhasil disimpan",
+      data: {
+        id_surat_akhir: updatedRow.id_surat_akhir,
+        nim: updatedRow.nim || nim,
+        status_penilaian_mitra: "Sudah Dinilai Mitra",
+        nilai_mitra: {
+          nilai_angka: scoreNum,
+          nilai_huruf: finalLetter,
+          catatan_mitra: feedback,
+          sertifikat_magang_url: certUrl,
+        },
+        updated_at: nowIso,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+router.post("/mitra/submit-nilai", authenticateToken, requireRole(["MITRA", "ADMIN_PRODI", "DEKAN"]), handleSubmitNilaiMitra);
+router.put("/mitra/submit-nilai", authenticateToken, requireRole(["MITRA", "ADMIN_PRODI", "DEKAN"]), handleSubmitNilaiMitra);
+
+// 6. GET ALL SURAT AKHIR (ADMIN / DEKAN DASHBOARD)
 router.get("/admin/list", authenticateToken, requireRole(["ADMIN_PRODI", "DEKAN"]), async (req, res, next) => {
   try {
     const { data: dbData } = await supabase
