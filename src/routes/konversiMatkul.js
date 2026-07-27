@@ -322,7 +322,7 @@ router.post("/ai-recommendation", authenticateToken, requireRole(["MAHASISWA"]),
   }
 });
 
-router.post("/", authenticateToken, requireRole(["MAHASISWA"]), async (req, res, next) => {
+const handleSaveKonversiMatkul = async (req, res, next) => {
   try {
     const mahasiswa = await resolveMahasiswa(req);
     const pengajuan = req.body.id_pengajuan
@@ -518,7 +518,10 @@ router.post("/", authenticateToken, requireRole(["MAHASISWA"]), async (req, res,
   } catch (err) {
     next(err);
   }
-});
+};
+
+router.post("/", authenticateToken, requireRole(["MAHASISWA"]), handleSaveKonversiMatkul);
+router.put("/", authenticateToken, requireRole(["MAHASISWA"]), handleSaveKonversiMatkul);
 
 router.get("/my-status", authenticateToken, requireRole(["MAHASISWA"]), async (req, res, next) => {
   try {
@@ -686,8 +689,7 @@ router.get("/dpl/list", authenticateToken, requireRole(["DPL", "ADMIN_PRODI"]), 
   }
 });
 
-// 6. POST DPL REVIEW & ASSESSMENT (DPL MEMBERI PENILAIAN / CATATAN DOSEN)
-router.post("/dpl/review", authenticateToken, requireRole(["DPL", "ADMIN_PRODI"]), async (req, res, next) => {
+const handleDplReview = async (req, res, next) => {
   try {
     const { id_item_konversi, action, catatan_dosen, nilai_angka, nilai_huruf } = req.body;
 
@@ -735,6 +737,9 @@ router.post("/dpl/review", authenticateToken, requireRole(["DPL", "ADMIN_PRODI"]
   } catch (err) {
     next(err);
   }
-});
+};
+
+router.post("/dpl/review", authenticateToken, requireRole(["DPL", "ADMIN_PRODI"]), handleDplReview);
+router.put("/dpl/review", authenticateToken, requireRole(["DPL", "ADMIN_PRODI"]), handleDplReview);
 
 module.exports = router;

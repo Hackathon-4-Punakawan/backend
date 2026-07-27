@@ -143,8 +143,8 @@ router.get("/helper-info", authenticateToken, async (req, res, next) => {
   }
 });
 
-// 2. SUBMIT PENGAJUAN SURAT / ID MAGANG FIK
-router.post("/", authenticateToken, requireRole(["MAHASISWA"]), async (req, res, next) => {
+// 2. SUBMIT / EDIT PENGAJUAN SURAT / ID MAGANG FIK
+const handleSavePengajuanFik = async (req, res, next) => {
   try {
     const userId = req.user.userId;
     const {
@@ -396,7 +396,11 @@ router.post("/", authenticateToken, requireRole(["MAHASISWA"]), async (req, res,
   } catch (err) {
     next(err);
   }
-});
+};
+
+router.post("/", authenticateToken, requireRole(["MAHASISWA"]), handleSavePengajuanFik);
+router.put("/", authenticateToken, requireRole(["MAHASISWA"]), handleSavePengajuanFik);
+router.put("/:id", authenticateToken, requireRole(["MAHASISWA"]), handleSavePengajuanFik);
 
 // 3. GET MY FIK SUBMISSIONS STATUS (FOR DASHBOARD MONITORING WITH OFFICIAL ID MAGANG FIK)
 router.get("/my-status", authenticateToken, async (req, res, next) => {
