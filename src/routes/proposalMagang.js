@@ -66,6 +66,33 @@ router.get("/helper-info", authenticateToken, async (req, res, next) => {
   }
 });
 
+const BULAN_INDONESIA = [
+  "Januari", "Februari", "Maret", "April", "Mei", "Juni",
+  "Juli", "Agustus", "September", "Oktober", "November", "Desember"
+];
+
+function formatIndonesianDate(dateStr) {
+  if (!dateStr) return "";
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return dateStr;
+  const day = String(d.getDate()).padStart(2, "0");
+  const month = BULAN_INDONESIA[d.getMonth()];
+  const year = d.getFullYear();
+  return `${day} ${month} ${year}`;
+}
+
+function resolveDurasiPelaksanaan(tanggal_mulai, tanggal_selesai, durasi_pelaksanaan) {
+  if (tanggal_mulai && tanggal_selesai) {
+    const tglMulaiFormatted = formatIndonesianDate(tanggal_mulai);
+    const tglSelesaiFormatted = formatIndonesianDate(tanggal_selesai);
+    return `${tglMulaiFormatted} sampai dengan ${tglSelesaiFormatted}`;
+  }
+  if (durasi_pelaksanaan && durasi_pelaksanaan.trim()) {
+    return durasi_pelaksanaan.trim();
+  }
+  return "01 Agustus 2026 sampai dengan 31 Januari 2027";
+}
+
 // 2. SUBMIT PROPOSAL MAGANG (MAHASISWA STEP 2)
 router.post("/", authenticateToken, requireRole(["MAHASISWA"]), async (req, res, next) => {
   try {
@@ -75,6 +102,8 @@ router.post("/", authenticateToken, requireRole(["MAHASISWA"]), async (req, res,
       nama_program_kegiatan,
       nama_instansi,
       alamat_instansi,
+      tanggal_mulai,
+      tanggal_selesai,
       durasi_pelaksanaan,
       nama_pic,
       jabatan_pic,
@@ -141,6 +170,8 @@ router.post("/", authenticateToken, requireRole(["MAHASISWA"]), async (req, res,
       }
     }
 
+    const finalDurasi = resolveDurasiPelaksanaan(tanggal_mulai, tanggal_selesai, durasi_pelaksanaan);
+
     const payload = {
       id_proposal: memoryProposalStore.length + 1,
       id_pengajuan: targetPengajuanId,
@@ -148,7 +179,9 @@ router.post("/", authenticateToken, requireRole(["MAHASISWA"]), async (req, res,
       nama_program_kegiatan: nama_program_kegiatan.trim(),
       nama_instansi: nama_instansi ? nama_instansi.trim() : null,
       alamat_instansi: alamat_instansi ? alamat_instansi.trim() : null,
-      durasi_pelaksanaan: durasi_pelaksanaan ? durasi_pelaksanaan.trim() : "6 Bulan",
+      tanggal_mulai: tanggal_mulai || null,
+      tanggal_selesai: tanggal_selesai || null,
+      durasi_pelaksanaan: finalDurasi,
       nama_pic: nama_pic ? nama_pic.trim() : null,
       jabatan_pic: jabatan_pic ? jabatan_pic.trim() : null,
       email_pic: email_pic ? email_pic.trim().toLowerCase() : null,
