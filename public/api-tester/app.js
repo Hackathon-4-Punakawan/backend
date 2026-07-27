@@ -13,6 +13,14 @@ const endpointCatalog = [
   ["Dashboard DPL", "GET", "/api/v1/konversi-matkul/dpl/list", "9. Legacy Daftar Usulan Konversi Masuk DPL", {}],
   ["Dashboard DPL", "POST", "/api/v1/konversi-matkul/dpl/review", "10. Legacy Review DPL (ACC / Revisi)", { id_item_konversi: 1, action: "ACC", catatan_dosen: "Mata kuliah & objective CPMK disetujui DPL" }],
 
+  // 🏢 KATEGORI KHUSUS: DASHBOARD MITRA INDUSTRI
+  ["Dashboard Mitra", "POST", "/api/v1/auth/login", "1. Login Mitra (Rian Hidayat - PT GoTo)", { identifier: "rian.hidayat@goto.com", password: "Mtr#1234" }],
+  ["Dashboard Mitra", "GET", "/api/v1/mitra/dashboard-stats", "2. Statistik Dashboard Mitra (Jumlah Mahasiswa Magang & Evaluasi)", {}],
+  ["Dashboard Mitra", "GET", "/api/v1/mitra/mahasiswa", "3. Daftar Mahasiswa Pengaju Surat Terima Kasih ke Mitra", {}],
+  ["Dashboard Mitra", "GET", "/api/v1/mitra/mahasiswa/21.11.4001", "4. Detail Data Mahasiswa Magang & Surat Terima Kasih", {}],
+  ["Dashboard Mitra", "POST", "/api/v1/mitra/penilaian", "5. Mitra Submit Penilaian Akhir Magang & Sertifikat (Post / Put)", { id_surat_akhir: 1, nim: "21.11.4001", nilai_mitra_angka: 92, nilai_mitra_huruf: "A", catatan_mitra: "Mahasiswa berkinerja luar biasa, sangat proaktif menguasai REST API & microservices.", sertifikat_magang_url: "https://drive.google.com/file/d/sertifikat_goto_budi.pdf" }],
+  ["Dashboard Mitra", "POST", "/api/v1/mitra/submit-nilai", "6. Shortcut Mitra Submit Penilaian", { id_surat_akhir: 1, nim: "21.11.4001", nilai_mitra_angka: 95, catatan_mitra: "Kinerja sangat memuaskan." }],
+
   // AUTENTIKASI & USER MANAGEMENT
   ["Autentikasi", "POST", "/api/v1/auth/register-mahasiswa", "Registrasi Mahasiswa Mandiri", { nim: "21.11.4005", nama: "Rizky Ramadhan", email: "rizky.ramadhan@students.amikom.ac.id", password: "Password123" }],
   ["Autentikasi", "POST", "/api/v1/auth/login", "Login Mahasiswa (NIM)", { identifier: "21.11.4001", password: "Budi#1234" }],

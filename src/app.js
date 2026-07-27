@@ -13,6 +13,7 @@ const pengajuanDplRouter = require("./routes/pengajuanDpl");
 const konversiMatkulRouter = require("./routes/konversiMatkul");
 const suratAkhirMagangRouter = require("./routes/suratAkhirMagang");
 const dosenRouter = require("./routes/dosen");
+const mitraRouter = require("./routes/mitra");
 
 const app = express();
 
@@ -46,6 +47,7 @@ app.use("/api/v1/konversi-matkul", konversiMatkulRouter);
 app.use("/api/v1/surat-akhir-magang", suratAkhirMagangRouter);
 app.use("/api/v1/dosen", dosenRouter);
 app.use("/api/v1/dpl", dosenRouter);
+app.use("/api/v1/mitra", mitraRouter);
 app.use("/api/v1", apiRouter);
 
 app.use((req, res) => {
