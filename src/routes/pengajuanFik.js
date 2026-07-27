@@ -5,6 +5,12 @@ const { authenticateToken, requireRole } = require("../middleware/auth");
 
 const router = express.Router();
 
+function httpError(status, message) {
+  const error = new Error(message);
+  error.status = status;
+  return error;
+}
+
 const JENIS_PENGAJUAN_VALID = ["Pengajuan ID Magang", "Pra Survey Magang", "Id Magang"];
 const FIK_WEB_STATUS_URL = "https://fik.amikom.ac.id/page/status-pengajuan-layanan";
 const FIK_TELEGRAM_BOT_URL = "http://t.me/AMIKOMFakultasbot";
@@ -188,6 +194,28 @@ router.post("/", authenticateToken, requireRole(["MAHASISWA"]), async (req, res,
     const tahun_akademik = req.body.tahun_akademik || autoTahunAkademik;
     const targetTujuanSurat = kepada_yth || tujuan_surat || `Yth. Pimpinan ${nama_instansi.trim()}`;
 
+    // Check if student already submitted an application in the SAME semester
+    const { memorySemesterStore } = require("../utils/sharedStore");
+    const semesterKey = `${mhs.nim}:${semester}`;
+
+    // Seed default existing semester if student already has submissions
+    const { data: dbSubmissions } = await supabase
+      .from("pengajuan_magang")
+      .select("id_pengajuan, created_at")
+      .eq("nim", mhs.nim);
+
+    if (dbSubmissions && dbSubmissions.length > 0 && !memorySemesterStore.has(semesterKey)) {
+      // Mark baseline semester (semester 6) as submitted for existing student
+      memorySemesterStore.add(`${mhs.nim}:6`);
+    }
+
+    if (memorySemesterStore.has(semesterKey)) {
+      throw httpError(
+        409,
+        `Anda sudah memiliki pengajuan magang aktif pada Semester ${semester} (${tahun_akademik}). Mahasiswa hanya dapat melakukan pengajuan magang 1 kali per semester.`
+      );
+    }
+
     // Temporary pending tracking ID until approved
     const tempTrackingCode = `FIK-PENDING-${new Date().getFullYear()}-${crypto.randomBytes(2).toString("hex").toUpperCase()}`;
     const nowIso = new Date().toISOString();
@@ -219,6 +247,8 @@ router.post("/", authenticateToken, requireRole(["MAHASISWA"]), async (req, res,
       .insert(fullPayload)
       .select()
       .maybeSingle();
+
+    memorySemesterStore.add(semesterKey);
 
     if (directErr && directErr.message && (directErr.message.includes("pengajuan_magang_pkey") || directErr.message.includes("duplicate key"))) {
       const { data: maxRow } = await supabase
