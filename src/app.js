@@ -4,6 +4,8 @@ const express = require("express");
 const cors = require("cors");
 const path = require("path");
 const apiRouter = require("./routes/api");
+const authRouter = require("./routes/auth");
+const adminRouter = require("./routes/admin");
 
 const app = express();
 
@@ -27,6 +29,8 @@ app.get("/health", async (req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
 });
 
+app.use("/api/v1/auth", authRouter);
+app.use("/api/v1/admin", adminRouter);
 app.use("/api/v1", apiRouter);
 
 app.use((req, res) => {
