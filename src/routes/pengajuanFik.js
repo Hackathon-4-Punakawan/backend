@@ -198,21 +198,34 @@ router.post("/", authenticateToken, requireRole(["MAHASISWA"]), async (req, res,
     const { memorySemesterStore } = require("../utils/sharedStore");
     const semesterKey = `${mhs.nim}:${semester}`;
 
-    // Seed default existing semester if student already has submissions
     const { data: dbSubmissions } = await supabase
       .from("pengajuan_magang")
-      .select("id_pengajuan, created_at")
+      .select("id_pengajuan, created_at, status_surat_fakultas, status_pengajuan")
       .eq("nim", mhs.nim);
 
-    if (dbSubmissions && dbSubmissions.length > 0 && !memorySemesterStore.has(semesterKey)) {
-      // Mark baseline semester (semester 6) as submitted for existing student
-      memorySemesterStore.add(`${mhs.nim}:6`);
+    let hasRejectedOrRevisi = false;
+    let existingRejectedId = null;
+
+    if (dbSubmissions && dbSubmissions.length > 0) {
+      for (const sub of dbSubmissions) {
+        const statusStr = (sub.status_surat_fakultas || sub.status_pengajuan || "").toUpperCase();
+        if (statusStr.includes("TOLAK") || statusStr.includes("REVISI")) {
+          hasRejectedOrRevisi = true;
+          existingRejectedId = sub.id_pengajuan;
+          break;
+        }
+      }
+
+      if (!memorySemesterStore.has(semesterKey) && !hasRejectedOrRevisi) {
+        memorySemesterStore.add(`${mhs.nim}:6`);
+      }
     }
 
-    if (memorySemesterStore.has(semesterKey)) {
+    // Allow resubmission/edit if previous status is Ditolak/Revisi; block only active non-rejected submissions
+    if (memorySemesterStore.has(semesterKey) && !hasRejectedOrRevisi) {
       throw httpError(
         409,
-        `Anda sudah memiliki pengajuan magang aktif pada Semester ${semester} (${tahun_akademik}). Mahasiswa hanya dapat melakukan pengajuan magang 1 kali per semester.`
+        `Anda sudah memiliki pengajuan magang aktif pada Semester ${semester} (${tahun_akademik}). Jika pengajuan sebelumnya Ditolak atau Minta Revisi, Anda dapat menyesuaikannya berdasarkan catatan dosen.`
       );
     }
 

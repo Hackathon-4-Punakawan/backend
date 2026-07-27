@@ -83,6 +83,16 @@ sequenceDiagram
 
 ---
 
+## ⚡ Aturan Validasi Pengajuan per Semester & Perbaikan/Revisi
+
+1. **Pembatasan 1 Kali per Semester**:
+   - Mahasiswa hanya dapat membuat 1 kali pengajuan magang baru per semester berjalan (HTTP 409 Conflict jika mencoba membuat pengajuan ganda).
+2. **Pengecualian Status Ditolak / Revisi**:
+   - Jika pengajuan sebelumnya atau mata kuliah konversi mendapatkan status **`Ditolak`** / **`Revisi`** / **`Revisi DPL`**, mahasiswa **DIPERBOLEHKAN untuk mengedit dan mengirimkan kembali (*resubmit*)** pengajuan tersebut pada semester yang sama berdasarkan catatan perbaikan dosen (*catatan_dosen*).
+   - Setelah diperbarui oleh mahasiswa, status otomatis kembali ke **`Menunggu Review DPL`** / **`Diproses`** untuk dievaluasi ulang oleh dosen.
+
+---
+
 ## 📡 3. Unified All-Steps API Contract (Pusat Data Dashboard)
 
 Untuk menampilkan seluruh riwayat dan status perkembangan mahasiswa dalam 1 tampilan tabel ringkas, Frontend memanggil endpoint terpadu:
