@@ -38,6 +38,14 @@ const endpointCatalog = [
   ["Surat FIK", "POST", "/api/v1/pengajuan-fik", "Submit Form Pendaftaran FIK (Pengajuan ID Magang / Pra Survey / Id Magang)", { jenis_pengajuan: "Pengajuan ID Magang", kepada_yth: "Yth. Head of Engineering", nama_instansi: "PT Amikom Tech Digital", alamat_instansi: "Jl. Ring Road Utara, Condongcatur, Sleman, Yogyakarta", posisi: "Fullstack Developer Intern", jenis_program: "Magang Mandiri" }],
   ["Surat FIK", "GET", "/api/v1/pengajuan-fik/my-status", "Monitoring Status Pengajuan FIK Mahasiswa (Embedded Links)"],
   ["Surat FIK", "PATCH", "/api/v1/pengajuan-fik/1/status", "Update Status Surat Fakultas (Admin/Fakultas)", { status_surat_fakultas: "Disetujui", surat_pengantar_url: "https://fik.amikom.ac.id/downloads/surat-pengantar.pdf" }],
+
+  // PROPOSAL MAGANG (STEP 2) & REVIEW ADMIN KAPRODI
+  ["Proposal Step 2", "GET", "/api/v1/proposal-magang/helper-info", "Pre-fill Form Proposal (Mahasiswa)"],
+  ["Proposal Step 2", "POST", "/api/v1/proposal-magang", "Submit Proposal Magang Complete (Mahasiswa)", { nama_program_kegiatan: "Magang Fullstack Developer BIMA", nama_instansi: "PT GoTo Gojek Tokopedia Tbk", alamat_instansi: "Jl. Pasar Raya No. 21 Jakarta", durasi_pelaksanaan: "6 Bulan", nama_pic: "Rian Hidayat", jabatan_pic: "Senior Tech Lead", email_pic: "rian.hidayat@goto.com", no_hp_pic: "081234567890", program_diikuti: "Magang Mandiri", no_hp_mahasiswa: "089876543210", alasan_mendaftar: "Saya mendaftar kegiatan ini untuk mengasah keahlian software engineering berbasis industri secara riil...", deskripsi_kegiatan: "Project ini meliputi pembuatan REST API backend, pemetaan kurikulum OBE, serta deployment aplikasi ke cloud server...", keahlian_utama: "Pengembangan web application, arsitektur REST API, microservices, dan database optimization...", file_cv: "https://drive.google.com/file/d/cv_mahasiswa.pdf", file_krs: "https://drive.google.com/file/d/krs_semester.pdf", file_transkrip: "https://drive.google.com/file/d/transkrip_nilai.pdf", file_proposal_pdf: "https://drive.google.com/file/d/proposal_lengkap.pdf" }],
+  ["Proposal Step 2", "GET", "/api/v1/proposal-magang/my-proposal", "Monitoring Proposal Mahasiswa (Status & Review)"],
+  ["Proposal Step 2", "GET", "/api/v1/proposal-magang/admin/list", "Daftar Proposal Masuk (Admin Kaprodi Dashboard)"],
+  ["Proposal Step 2", "POST", "/api/v1/proposal-magang/1/review", "Review Proposal: ACC (Admin Kaprodi)", { action: "ACC", catatan_revisi: "Proposal disetujui, topik sesuai dengan standar OBE Informatika" }],
+  ["Proposal Step 2", "POST", "/api/v1/proposal-magang/1/review", "Review Proposal: Tolak/Revisi (Admin Kaprodi)", { action: "REVISI", catatan_revisi: "Harap perjelas rincian deskripsi kegiatan project pada bab 2" }],
   
   // KONVERSI & PENILAIAN (70:30)
   ["Konversi", "GET", "/api/v1/item-konversi", "Daftar item konversi"],
