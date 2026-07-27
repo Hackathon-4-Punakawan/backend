@@ -48,9 +48,9 @@ const endpointCatalog = [
   ["Proposal Step 2", "POST", "/api/v1/proposal-magang/1/review", "Review Proposal: Tolak/Revisi (Admin Kaprodi)", { action: "REVISI", catatan_revisi: "Harap perjelas rincian deskripsi kegiatan project pada bab 2" }],
   
   // PENGAJUAN SURAT PENGANTAR MAGANG FIK (STEP 3)
-  ["Surat Pengantar Step 3", "GET", "/api/v1/surat-pengantar/helper-info", "Pre-fill Form Surat Pengantar (Auto ID Magang FIK & Periode Magang)"],
-  ["Surat Pengantar Step 3", "POST", "/api/v1/surat-pengantar", "Submit Pengajuan Surat Pengantar Magang FIK (Auto Calculate Period)", { id_magang: "FIK6199364", tanggal_mulai: "2026-08-01", tanggal_berakhir: "2027-01-31", tujuan_surat: "Kepada Yth. VP of Engineering PT GoTo Gojek Tokopedia Tbk" }],
-  ["Surat Pengantar Step 3", "GET", "/api/v1/surat-pengantar/my-status", "Monitoring Status & Unduh PDF Surat Pengantar (Mahasiswa)"],
+  ["Surat Pengantar Step 3", "GET", "/api/v1/surat-pengantar/helper-info", "Pre-fill Form Surat Pengantar (Auto 5 Fields)"],
+  ["Surat Pengantar Step 3", "POST", "/api/v1/surat-pengantar", "Submit Pengajuan Surat Pengantar Magang FIK", { id_magang: "FIK6199364", tanggal_mulai: "2026-08-01", tanggal_berakhir: "2027-01-31" }],
+  ["Surat Pengantar Step 3", "GET", "/api/v1/surat-pengantar/my-status", "Monitoring Status & Unduh PDF Surat Pengantar"],
   ["Surat Pengantar Step 3", "GET", "/api/v1/surat-pengantar/admin/list", "Daftar Pengajuan Surat Pengantar (Admin Dashboard)"],
   
   // KONVERSI & PENILAIAN (70:30)

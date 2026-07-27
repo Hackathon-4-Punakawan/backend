@@ -82,23 +82,12 @@ router.get("/helper-info", authenticateToken, async (req, res, next) => {
 
     res.json({
       data: {
+        judul_form: "PENGAJUAN SURAT PENGANTAR MAGANG MAHASISWA FAKULTAS ILMU KOMPUTER",
         email: mhs.email,
         id_magang: officialIdMagang,
         tanggal_mulai_magang: tglMulai,
-        tanggal_mulai_formatted: formatIndonesianDate(tglMulai),
         tanggal_berakhir_magang: tglSelesai,
-        tanggal_berakhir_formatted: formatIndonesianDate(tglSelesai),
         periode_magang: periodeMagang,
-        nama_instansi: latestProposal?.nama_instansi || latestPengajuan?.nama_instansi || "-",
-        alamat_instansi: latestProposal?.alamat_instansi || latestPengajuan?.alamat_instansi || "-",
-        tujuan_surat: latestPengajuan?.tujuan_surat || "Kepada Yth. Pimpinan Instansi",
-        status_proposal: latestProposal?.status_review || latestPengajuan?.status_proposal || "ACC Proposal",
-        mahasiswa: {
-          nama: mhs.nama,
-          email: mhs.email,
-          nim: mhs.nim,
-          prodi: mhs.prodi || "Informatika",
-        },
       },
     });
   } catch (err) {
