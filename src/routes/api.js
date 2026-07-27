@@ -5,7 +5,7 @@ const supabase = require("../config/supabase");
 const router = express.Router();
 
 const resources = [
-  { path: "mahasiswa", table: "mahasiswa", id: "nim", fields: ["nim", "nama", "prodi", "angkatan", "email", "foto_profile"], required: ["nim", "nama", "prodi", "email"] },
+  { path: "mahasiswa", table: "mahasiswa", id: "nim", fields: ["nim", "nama", "prodi", "email", "foto_profile"], required: ["nim", "nama", "email"] },
   { path: "dosen-pembimbing", table: "dosen_pembimbing", id: "nidn", fields: ["nidn", "nama", "bidang_keahlian", "email", "foto_profile", "is_active"], required: ["nidn", "nama", "email"] },
   { path: "mitra-industri", table: "mitra_industri", id: "id_mitra", fields: ["nama_perusahaan", "kategori_industri", "bidang_usaha", "kontak_pic"], required: ["nama_perusahaan"] },
   { path: "admin-kaprodi", table: "admin_kaprodi", id: "id_admin", fields: ["nama", "jabatan", "email"], required: ["nama", "jabatan", "email"] },

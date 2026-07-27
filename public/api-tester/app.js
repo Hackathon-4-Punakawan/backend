@@ -15,7 +15,7 @@ const endpointCatalog = [
 
   // MASTER & DATA ENTITIES
   ["Master", "GET", "/api/v1/mahasiswa", "Daftar mahasiswa"],
-  ["Master", "POST", "/api/v1/mahasiswa", "Tambah mahasiswa", { nim: "21.11.4004", nama: "Nama Mahasiswa", prodi: "Informatika", angkatan: "2021", email: "mahasiswa@example.com" }],
+  ["Master", "POST", "/api/v1/mahasiswa", "Tambah mahasiswa", { nim: "21.11.4004", nama: "Nama Mahasiswa", email: "mahasiswa@example.com" }],
   ["Master", "GET", "/api/v1/dosen-pembimbing", "Daftar dosen"],
   ["Master", "GET", "/api/v1/mitra-industri", "Daftar mitra"],
   ["Master", "GET", "/api/v1/admin-kaprodi", "Daftar admin"],

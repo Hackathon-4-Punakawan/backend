@@ -24,9 +24,10 @@ router.post("/register-mahasiswa", async (req, res, next) => {
 
     const email = req.body.email.trim().toLowerCase();
     const nim = req.body.nim.trim();
+    const nama = req.body.nama.trim();
     const password = req.body.password;
     const prodi = req.body.prodi ? req.body.prodi.trim() : "Informatika";
-    const angkatan = req.body.angkatan ? req.body.angkatan.trim() : null;
+    const foto_profile = req.body.foto_profile || `https://ui-avatars.com/api/?name=${encodeURIComponent(nama)}&background=4f46e5&color=fff&bold=true`;
 
     if (password.length < 6) {
       throw httpError(400, "Password minimal 6 karakter");
@@ -77,11 +78,10 @@ router.post("/register-mahasiswa", async (req, res, next) => {
       .insert({
         nim,
         user_id: user.id,
-        nama: req.body.nama.trim(),
+        nama,
         prodi,
-        angkatan,
         email,
-        foto_profile: req.body.foto_profile || null,
+        foto_profile,
       })
       .select()
       .single();
