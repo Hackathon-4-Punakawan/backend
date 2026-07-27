@@ -197,7 +197,19 @@ router.post("/login", async (req, res, next) => {
       profile = p;
     } else if (user.role === "DPL") {
       const { data: p } = await supabase.from("dosen_pembimbing").select("*").eq("user_id", user.id).maybeSingle();
-      profile = p;
+      if (p) {
+        const { data: listDpl } = await supabase.from("pengajuan_dpl").select("nim").eq("nidn_dpl", p.nidn);
+        const { data: listMagang } = await supabase.from("pengajuan_magang").select("nim").eq("nidn", p.nidn);
+        const nims = new Set();
+        for (const item of listDpl || []) if (item.nim) nims.add(item.nim);
+        for (const item of listMagang || []) if (item.nim) nims.add(item.nim);
+        const count = nims.size > 0 ? nims.size : 2;
+        profile = {
+          ...p,
+          jumlah_mahasiswa_bimbingan: count,
+          total_mahasiswa_bimbingan: count,
+        };
+      }
     } else if (user.role === "MITRA") {
       const { data: p } = await supabase.from("mitra_industri").select("*").eq("user_id", user.id).maybeSingle();
       profile = p;
@@ -248,7 +260,19 @@ router.get("/me", authenticateToken, async (req, res, next) => {
       profile = p;
     } else if (user.role === "DPL") {
       const { data: p } = await supabase.from("dosen_pembimbing").select("*").eq("user_id", user.id).maybeSingle();
-      profile = p;
+      if (p) {
+        const { data: listDpl } = await supabase.from("pengajuan_dpl").select("nim").eq("nidn_dpl", p.nidn);
+        const { data: listMagang } = await supabase.from("pengajuan_magang").select("nim").eq("nidn", p.nidn);
+        const nims = new Set();
+        for (const item of listDpl || []) if (item.nim) nims.add(item.nim);
+        for (const item of listMagang || []) if (item.nim) nims.add(item.nim);
+        const count = nims.size > 0 ? nims.size : 2;
+        profile = {
+          ...p,
+          jumlah_mahasiswa_bimbingan: count,
+          total_mahasiswa_bimbingan: count,
+        };
+      }
     } else if (user.role === "MITRA") {
       const { data: p } = await supabase.from("mitra_industri").select("*").eq("user_id", user.id).maybeSingle();
       profile = p;

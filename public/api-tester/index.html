@@ -15,6 +15,8 @@
     <div class="server-control">
       <label for="base-url">Base URL</label>
       <input id="base-url" autocomplete="url">
+      <label for="token-input">JWT Token</label>
+      <input id="token-input" placeholder="Auto-filled saat login..." autocomplete="off">
       <span id="status" class="status">checking</span>
     </div>
   </header>
@@ -24,6 +26,11 @@
       <div class="catalog-head">
         <p class="label">Endpoint Catalog</p>
         <input id="search" type="search" placeholder="Cari endpoint...">
+        <div class="filter-pills">
+          <button type="button" class="pill active" data-cat="" onclick="filterCategory('')">Semua</button>
+          <button type="button" class="pill pill-dpl" data-cat="Dashboard DPL" onclick="filterCategory('Dashboard DPL')">👨‍🏫 Dashboard DPL</button>
+          <button type="button" class="pill" data-cat="Step" onclick="filterCategory('Step')">🎓 Step Magang</button>
+        </div>
       </div>
       <nav id="endpoint-list"></nav>
     </aside>

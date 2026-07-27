@@ -1,10 +1,22 @@
 const endpointCatalog = [
   ["System", "GET", "/health", "Health check"],
   
+  // 👨‍🏫 KATEGORI KHUSUS: DASHBOARD DPL / DOSEN PEMBIMBING LAPANGAN
+  ["Dashboard DPL", "POST", "/api/v1/auth/login", "1. Login DPL (Dr. Indah Susanti)", { identifier: "0512038901", password: "Dosen#1234" }],
+  ["Dashboard DPL", "GET", "/api/v1/dosen/dashboard-stats", "2. Statistik Dashboard DPL (Jumlah Mahasiswa Diampu & Status Konversi)", {}],
+  ["Dashboard DPL", "GET", "/api/v1/dosen/mahasiswa", "3. Daftar Mahasiswa Bimbingan yang Diampu DPL", {}],
+  ["Dashboard DPL", "GET", "/api/v1/dosen/mahasiswa/21.11.4001", "4. Detail Data Mahasiswa Bimbingan (Profil, Magang, & Konversi SKS)", {}],
+  ["Dashboard DPL", "POST", "/api/v1/dosen/konversi/review", "5. Review DPL: ACC Usulan Konversi (Post / Put)", { id_item_konversi: 101, nim: "21.11.4001", action: "ACC", catatan_dosen: "Objective dan CPMK sudah sesuai dengan standar industri", nilai_angka: 90, nilai_huruf: "A" }],
+  ["Dashboard DPL", "POST", "/api/v1/dosen/konversi/review", "6. Review DPL: Minta Revisi Konversi dengan Catatan Wajib", { id_item_konversi: 101, nim: "21.11.4001", action: "REVISI", catatan_dosen: "Harap perjelas rincian objective activity pada modul basis data" }],
+  ["Dashboard DPL", "POST", "/api/v1/dosen/konversi/acc", "7. Shortcut DPL ACC Konversi", { id_item_konversi: 101, nim: "21.11.4001", catatan_dosen: "ACC oleh DPL" }],
+  ["Dashboard DPL", "POST", "/api/v1/dosen/konversi/revisi", "8. Shortcut DPL Revisi Konversi (Catatan Wajib)", { id_item_konversi: 101, nim: "21.11.4001", catatan_dosen: "Catatan perbaikan revisi DPL" }],
+  ["Dashboard DPL", "GET", "/api/v1/konversi-matkul/dpl/list", "9. Legacy Daftar Usulan Konversi Masuk DPL", {}],
+  ["Dashboard DPL", "POST", "/api/v1/konversi-matkul/dpl/review", "10. Legacy Review DPL (ACC / Revisi)", { id_item_konversi: 1, action: "ACC", catatan_dosen: "Mata kuliah & objective CPMK disetujui DPL" }],
+
   // AUTENTIKASI & USER MANAGEMENT
   ["Autentikasi", "POST", "/api/v1/auth/register-mahasiswa", "Registrasi Mahasiswa Mandiri", { nim: "21.11.4005", nama: "Rizky Ramadhan", email: "rizky.ramadhan@students.amikom.ac.id", password: "Password123" }],
   ["Autentikasi", "POST", "/api/v1/auth/login", "Login Mahasiswa (NIM)", { identifier: "21.11.4001", password: "Budi#1234" }],
-  ["Autentikasi", "POST", "/api/v1/auth/login", "Login DPL (NIDN)", { identifier: "0512038901", password: "Dosen#1234" }],
+  ["Autentikasi", "POST", "/api/v1/auth/login", "Login DPL (NIDN: 0512038901)", { identifier: "0512038901", password: "Dosen#1234" }],
   ["Autentikasi", "POST", "/api/v1/auth/login", "Login Mitra (Email)", { identifier: "rian.hidayat@goto.com", password: "Mtr#1234" }],
   ["Autentikasi", "POST", "/api/v1/auth/login", "Login Admin Kaprodi", { identifier: "kaprodi.if@amikom.ac.id", password: "Admin#1234" }],
   ["Autentikasi", "GET", "/api/v1/auth/me", "Profil User Aktif (/me)"],
@@ -65,8 +77,6 @@ const endpointCatalog = [
   ["Step 5 Konversi SKS", "POST", "/api/v1/konversi-matkul", "Submit Form Per Matkul (Individual Textfields Input)", { mode: "MANUAL", kode_mk: "ST084", nama_mk: "Pemrograman Web", sks: 4, cpmk: "CPMK16-Mahasiswa mampu merancang perangkat lunak pada berbagai platform digital", objective: "Memulai Dasar Pemrograman Web. 1. Meneliti, merancang, dan membangun web app responsif berbasis REST API.", durasi: "6 Bulan" }],
   ["Step 5 Konversi SKS", "POST", "/api/v1/konversi-matkul", "Submit Batch Tabel Konversi (Multiple Matkul Items)", { mode: "AI_RECOMMENDATION", items: [{ kode_mk: "ST084", nama_mk: "Pemrograman Web", sks: 4, cpmk: "CPMK16-Mahasiswa mampu merancang perangkat lunak pada berbagai platform digital", objective: "Memulai Dasar Pemrograman Web. 1. Meneliti, merancang, dan membangun web app responsif berbasis REST API.", durasi: "6 Bulan", nilai_angka: 88, nilai_huruf: "A" }, { kode_mk: "ST116", nama_mk: "Pemrograman Basis Data", sks: 4, cpmk: "CPMK15-Mahasiswa mampu menganalisis perangkat lunak pada berbagai platform digital", objective: "Belajar Fundamen Database. 1. Menerapkan Microservices, SQL query, dan database optimization.", durasi: "6 Bulan", nilai_angka: 85, nilai_huruf: "A" }, { kode_mk: "ST091", nama_mk: "Analisis dan Desain Sistem Informasi", sks: 4, cpmk: "CPMK11-Mahasiswa mampu menghasilkan produk ekonomi kreatif digital dalam bidang informatika", objective: "Memulai Dasar Perancangan Sistem. 1. Meneliti, menganalisis sistem, UML diagram, dan proses bisnis.", durasi: "6 Bulan", nilai_angka: 82, nilai_huruf: "A-" }] }],
   ["Step 5 Konversi SKS", "GET", "/api/v1/konversi-matkul/my-status", "Monitoring Status Tabel Konversi SKS (Mahasiswa)"],
-  ["Step 5 Konversi SKS", "GET", "/api/v1/konversi-matkul/dpl/list", "Daftar Usulan Konversi Masuk ke DPL (DPL Dashboard)"],
-  ["Step 5 Konversi SKS", "POST", "/api/v1/konversi-matkul/dpl/review", "Review DPL - ACC / Revisi (Nilai Opsional)", { id_item_konversi: 1, action: "ACC", catatan_dosen: "Mata kuliah & objective CPMK disetujui DPL" }],
 
   // SURAT AKHIR & UCAPAN TERIMA KASIH (AKHIR MAGANG)
   ["Surat Akhir Magang", "GET", "/api/v1/surat-akhir-magang/helper-info", "Get Prefilled Automatic Fields (Email, Tgl Mulai, Tgl Berakhir, Periode)"],
@@ -108,14 +118,37 @@ const endpointCatalog = [
 ];
 
 const elements = Object.fromEntries(
-  ["base-url", "status", "search", "endpoint-list", "method", "path", "body", "send", "format", "request-error", "response", "response-meta", "copy", "form-builder", "tab-form", "tab-json"].map((id) => [
+  ["base-url", "token-input", "status", "search", "endpoint-list", "method", "path", "body", "send", "format", "request-error", "response", "response-meta", "copy", "form-builder", "tab-form", "tab-json"].map((id) => [
     id,
     document.getElementById(id),
   ])
 );
 elements["base-url"].value = window.location.origin;
 
+// Auto Load Saved Token from LocalStorage
+const savedToken = localStorage.getItem("api_tester_jwt") || "";
+if (elements["token-input"]) {
+  elements["token-input"].value = savedToken;
+  elements["token-input"].addEventListener("input", (e) => {
+    localStorage.setItem("api_tester_jwt", e.target.value.trim());
+  });
+}
+
 let activeTab = "form"; // 'form' or 'json'
+let currentCategoryFilter = "";
+
+function filterCategory(category) {
+  currentCategoryFilter = category;
+  document.querySelectorAll(".pill").forEach((pill) => {
+    if (pill.getAttribute("data-cat") === category) {
+      pill.classList.add("active");
+    } else {
+      pill.classList.remove("active");
+    }
+  });
+  renderCatalog(elements.search.value);
+}
+window.filterCategory = filterCategory;
 
 function switchTab(tab) {
   activeTab = tab;
@@ -137,7 +170,11 @@ elements["tab-json"].addEventListener("click", () => switchTab("json"));
 
 function renderCatalog(query = "") {
   const needle = query.toLowerCase();
-  const filtered = endpointCatalog.filter((item) => item.slice(0, 4).join(" ").toLowerCase().includes(needle));
+  const filtered = endpointCatalog.filter((item) => {
+    const matchCategory = !currentCategoryFilter || item[0].toLowerCase().includes(currentCategoryFilter.toLowerCase());
+    const matchSearch = item.slice(0, 4).join(" ").toLowerCase().includes(needle);
+    return matchCategory && matchSearch;
+  });
   const groups = Object.groupBy ? Object.groupBy(filtered, (item) => item[0]) : filtered.reduce((all, item) => ((all[item[0]] ||= []).push(item), all), {});
   elements["endpoint-list"].replaceChildren();
   for (const [group, endpoints] of Object.entries(groups)) {
@@ -239,97 +276,98 @@ elements.body.addEventListener("input", () => {
   try {
     const parsed = JSON.parse(elements.body.value);
     buildFormFromJSON(parsed);
-    elements["request-error"].textContent = "";
-  } catch (e) {
-    // If invalid JSON during typing, ignore sync
+  } catch (_) {}
+});
+
+elements.search.addEventListener("input", (e) => renderCatalog(e.target.value));
+
+elements.format.addEventListener("click", () => {
+  try {
+    if (elements.body.value.trim()) {
+      const parsed = JSON.parse(elements.body.value);
+      elements.body.value = JSON.stringify(parsed, null, 2);
+      buildFormFromJSON(parsed);
+      elements["request-error"].textContent = "";
+    }
+  } catch (err) {
+    elements["request-error"].textContent = `JSON tidak valid: ${err.message}`;
   }
 });
 
-async function sendRequest() {
-  elements["request-error"].textContent = "";
-  let payload;
-  if (elements.body.value.trim() && !elements.body.disabled) {
+elements.send.addEventListener("click", async () => {
+  const method = elements.method.value;
+  const path = elements.path.value;
+  const url = `${elements["base-url"].value}${path}`;
+
+  // Automatically attach Authorization Bearer header if token exists
+  const token = (elements["token-input"].value || localStorage.getItem("api_tester_jwt") || "").trim();
+  const headers = { "Content-Type": "application/json" };
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+
+  const options = { method, headers };
+
+  if (!["GET", "DELETE"].includes(method) && elements.body.value.trim()) {
     try {
-      JSON.parse(elements.body.value);
-      payload = elements.body.value;
-    } catch (error) {
-      elements["request-error"].textContent = `JSON tidak valid: ${error.message}`;
+      options.body = JSON.stringify(JSON.parse(elements.body.value));
+    } catch (err) {
+      elements["request-error"].textContent = `JSON tidak valid: ${err.message}`;
       return;
     }
   }
-  if (elements.method.value === "DELETE" && !window.confirm("Endpoint DELETE dapat menghapus data. Lanjutkan?")) return;
 
-  const url = new URL(elements.path.value, elements["base-url"].value).toString();
-  const started = performance.now();
-  elements.send.disabled = true;
-  elements.send.textContent = "Sending...";
-
-  // Retrieve stored JWT Token
-  const token = localStorage.getItem("unika_token");
-  const headers = { Accept: "application/json" };
-  if (payload) headers["Content-Type"] = "application/json";
-  if (token) headers["Authorization"] = `Bearer ${token}`;
+  const start = performance.now();
+  elements["response-meta"].textContent = "Loading...";
 
   try {
-    const response = await fetch(url, {
-      method: elements.method.value,
-      headers,
-      body: payload,
-    });
+    const response = await fetch(url, options);
     const text = await response.text();
-    let output = text;
+    const duration = Math.round(performance.now() - start);
+
+    elements["response-meta"].textContent = `${response.status} ${response.statusText} • ${duration}ms`;
+
     try {
       const parsed = JSON.parse(text);
-      output = JSON.stringify(parsed, null, 2);
+      elements.response.textContent = JSON.stringify(parsed, null, 2);
 
-      // Auto save JWT Token to localStorage on Login / Register success
-      if (response.ok && parsed.token) {
-        localStorage.setItem("unika_token", parsed.token);
+      // Auto capture JWT token upon successful login/register
+      const capturedToken = parsed.token || parsed.data?.token || (parsed.user && parsed.user.token);
+      if (capturedToken && typeof capturedToken === "string") {
+        elements["token-input"].value = capturedToken;
+        localStorage.setItem("api_tester_jwt", capturedToken);
       }
-    } catch (_) {}
+    } catch (_) {
+      elements.response.textContent = text;
+    }
+  } catch (err) {
+    elements["response-meta"].textContent = "Request Gagal";
+    elements.response.textContent = `Fetch error: ${err.message}`;
+  }
+});
 
-    const elapsed = Math.round(performance.now() - started);
-    elements.response.textContent = output || "(empty response)";
-    elements["response-meta"].textContent = `${response.status} ${response.statusText} · ${elapsed} ms · ${new Blob([text]).size} B`;
-    elements.status.textContent = response.ok ? "online" : "api error";
-    elements.status.className = `status ${response.ok ? "online" : "offline"}`;
-  } catch (error) {
-    elements.response.textContent = error.stack || error.message;
-    elements["response-meta"].textContent = "Network error";
+elements.copy.addEventListener("click", () => {
+  navigator.clipboard.writeText(elements.response.textContent);
+  const prev = elements.copy.textContent;
+  elements.copy.textContent = "Copied!";
+  setTimeout(() => (elements.copy.textContent = prev), 1200);
+});
+
+async function checkHealth() {
+  try {
+    const response = await fetch(`${elements["base-url"].value}/health`);
+    if (response.ok) {
+      elements.status.textContent = "online";
+      elements.status.className = "status online";
+    } else {
+      elements.status.textContent = "degraded";
+      elements.status.className = "status offline";
+    }
+  } catch (_) {
     elements.status.textContent = "offline";
     elements.status.className = "status offline";
-  } finally {
-    elements.send.disabled = false;
-    elements.send.textContent = "Send Request ⌘↵";
   }
 }
 
-elements.search.addEventListener("input", (e) => renderCatalog(e.target.value));
-elements.send.addEventListener("click", sendRequest);
-elements.format.addEventListener("click", () => {
-  if (!elements.body.value.trim() || elements.body.disabled) return;
-  try {
-    elements.body.value = JSON.stringify(JSON.parse(elements.body.value), null, 2);
-    elements["request-error"].textContent = "";
-  } catch (err) {
-    elements["request-error"].textContent = `Format JSON gagal: ${err.message}`;
-  }
-});
-
-elements.copy.addEventListener("click", async () => {
-  if (!elements.response.textContent) return;
-  await navigator.clipboard.writeText(elements.response.textContent);
-  elements.copy.textContent = "Copied!";
-  setTimeout(() => (elements.copy.textContent = "Copy"), 1500);
-});
-
-document.addEventListener("keydown", (e) => {
-  if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
-    e.preventDefault();
-    sendRequest();
-  }
-});
-
-// Initial tab setup
-switchTab("form");
 renderCatalog();
+checkHealth();
