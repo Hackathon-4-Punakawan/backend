@@ -15,9 +15,8 @@
 Aplikasi ini adalah **BIMA Revamp**, portal terintegrasi di lingkup **Prodi S-1 Informatika Universitas AMIKOM Yogyakarta** untuk mengelola konversi magang MBKM berbasis **Outcome-Based Education (OBE)** secara otomatis, transparan, dan objektif.
 
 ### 🏛️ Integrasi Alur Fakultas ke Dalam Dashboard:
-1. **Embedded Faculty Portal Widget:** Langkah-langkah eksternal Fakultas (seperti *Form Pra-Survey*, *Pengajuan Surat Pengantar FIK*, dan *Surat Ucapan Terima Kasih*) disediakan sebagai tombol pintas/tautan langsung (*Quick Action Cards*) di dalam Dashboard Mahasiswa.
-2. **Input & Verifikasi ID Magang Fakultas:** Mahasiswa menginput `ID Magang / Studi Independen` resmi yang didapat dari Pra-Survey Fakultas langsung ke form pendaftaran dashboard BIMA Revamp.
-3. **Unified Timeline Stepper:** Dashboard menampilkan indikator progres lengkap dari *Tahap Fakultas* (Pra-Survey & Surat Pengantar) hingga *Tahap Prodi/BIMA* (Proposal, Usulan CPMK, Logbook, Klaim, & Rilis Nilai).
+1. **Recreated Native Form Textfields (Tanpa Google Form External):** Formulir pendaftaran Fakultas (seperti *Surat Pra-Survey*, *Surat Pengantar Magang FIK*, *Penunjukan DPL*, dan *Surat Akhir Magang*) dibuat ulang menjadi form textfield bawaan di dalam **Dashboard Mahasiswa ➔ Fitur Pengajuan Magang**.
+2. **Unified Timeline Stepper:** Dashboard menampilkan indikator progres lengkap dari *Tahap Pengajuan Surat Fakultas* hingga *Tahap Konversi OBE Prodi* (Proposal, Usulan CPMK, Logbook, Klaim, & Rilis Nilai).
 
 ---
 
@@ -25,16 +24,15 @@ Aplikasi ini adalah **BIMA Revamp**, portal terintegrasi di lingkup **Prodi S-1 
 
 ```
 ========================================================================================
-DASHBOARD MAHASISWA (SINGLE WINDOW)
-[STEP 1: FAKULTAS & DRAFT PROPOSAL]
-├── [Action Card] Klik Link Pra-Survey Fakultas (1-5 Hari Kerja)
-├── Input "ID Magang Resmi dari Fakultas" (#INT-2026-XXXX)
-└── Upload Draft Proposal Magang -> [REVIEW PRODI INFORMATIKA]
+DASHBOARD MAHASISWA ➔ FITUR PENGAJUAN MAGANG (SINGLE WINDOW)
+[STEP 1: PENGAJUAN SURAT FAKULTAS & PROPOSAL]
+├── Form Textfield Native: Jenis Surat, Nama Instansi, Alamat Instansi, Tujuan Surat, Semester, & Tahun Akademik
+├── Unggah Draft Proposal Magang -> [REVIEW PRODI INFORMATIKA]
 │
 ▼ (Status: ACC Proposal)
-[STEP 2: SURAT PENGANTAR & DPL]
-├── [Action Card] Klik Link Pengajuan Surat Pengantar FIK (Website FIK)
-└── Pilih Dosen Pembimbing Lapangan (DPL) -> Notifikasi DPL via System
+[STEP 2: SURAT PENGANTAR & PENUNJUKAN DPL]
+├── Penerbitan Surat Pengantar Magang FIK
+└── Penunjukan Dosen Pembimbing Lapangan (DPL) -> Notifikasi DPL via System
 │
 ▼
 [STEP 3: USULAN KONVERSI OBE (BIMA REVAMP)]
