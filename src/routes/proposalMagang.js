@@ -213,14 +213,12 @@ router.post("/", authenticateToken, requireRole(["MAHASISWA"]), async (req, res,
       .select()
       .maybeSingle();
 
-    if (directErr) {
-      // In case proposal_magang table creation isn't applied yet on remote Supabase
+    if (directErr || !directData) {
       data = payload;
-      memoryProposalStore.unshift(data);
     } else {
       data = { ...directData, mahasiswa: payload.mahasiswa };
-      memoryProposalStore.unshift(data);
     }
+    memoryProposalStore.unshift(data);
 
     // Update status_proposal in pengajuan_magang
     if (targetPengajuanId) {

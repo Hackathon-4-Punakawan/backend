@@ -197,13 +197,12 @@ router.post("/", authenticateToken, requireRole(["MAHASISWA"]), async (req, res,
       .select()
       .maybeSingle();
 
-    if (directErr) {
+    if (directErr || !directData) {
       data = payload;
-      memorySuratStore.unshift(data);
     } else {
       data = { ...directData, mahasiswa: payload.mahasiswa };
-      memorySuratStore.unshift(data);
     }
+    memorySuratStore.unshift(data);
 
     const createdId = data.id_surat || newSuratId;
 
