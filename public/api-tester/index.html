@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Konversi API Lab - Dashboard Testing</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">AMIKOM / UNIKA.IN TOOL</p>
+      <h1>Konversi <span>API Lab</span></h1>
+    </div>
+    <div class="server-control">
+      <label for="base-url">Base URL</label>
+      <input id="base-url" autocomplete="url">
+      <span id="status" class="status">checking</span>
+    </div>
+  </header>
+
+  <main class="workspace">
+    <aside class="catalog">
+      <div class="catalog-head">
+        <p class="label">Endpoint Catalog</p>
+        <input id="search" type="search" placeholder="Cari endpoint...">
+      </div>
+      <nav id="endpoint-list"></nav>
+    </aside>
+
+    <section class="console">
+      <div class="request-panel panel">
+        <div class="panel-title">
+          <div><span class="step">01</span><h2>Request</h2></div>
+          <div class="panel-actions">
+            <button id="format" class="ghost" type="button">Format JSON</button>
+          </div>
+        </div>
+        <div class="request-line">
+          <select id="method" aria-label="HTTP method">
+            <option>GET</option><option>POST</option><option>PUT</option><option>PATCH</option><option>DELETE</option>
+          </select>
+          <input id="path" value="/health" aria-label="Endpoint path">
+          <button id="send" type="button">Send Request <span>⌘↵</span></button>
+        </div>
+
+        <div class="editor-header">
+          <div class="editor-tabs">
+            <button id="tab-form" class="editor-tab active" type="button">Form Textfields 📝</button>
+            <button id="tab-json" class="editor-tab" type="button">Raw JSON 💻</button>
+          </div>
+        </div>
+
+        <div id="form-builder" class="form-builder-container"></div>
+        <textarea id="body" spellcheck="false" placeholder="{&#10;  &quot;field&quot;: &quot;value&quot;&#10;}"></textarea>
+        <p id="request-error" class="error"></p>
+      </div>
+
+      <div class="response-panel panel">
+        <div class="panel-title">
+          <div><span class="step">02</span><h2>Response</h2></div>
+          <div class="response-actions"><span id="response-meta">Belum ada request</span><button id="copy" class="ghost" type="button">Copy</button></div>
+        </div>
+        <pre id="response">Pilih endpoint dari katalog atau isi form textfield, lalu kirim request.</pre>
+      </div>
+    </section>
+  </main>
+  <script src="app.js"></script>
+</body>
+</html>

@@ -61,12 +61,32 @@ const endpointCatalog = [
 ];
 
 const elements = Object.fromEntries(
-  ["base-url", "status", "search", "endpoint-list", "method", "path", "body", "send", "format", "request-error", "response", "response-meta", "copy"].map((id) => [
+  ["base-url", "status", "search", "endpoint-list", "method", "path", "body", "send", "format", "request-error", "response", "response-meta", "copy", "form-builder", "tab-form", "tab-json"].map((id) => [
     id,
     document.getElementById(id),
   ])
 );
 elements["base-url"].value = window.location.origin;
+
+let activeTab = "form"; // 'form' or 'json'
+
+function switchTab(tab) {
+  activeTab = tab;
+  if (tab === "form") {
+    elements["tab-form"].classList.add("active");
+    elements["tab-json"].classList.remove("active");
+    elements["form-builder"].style.display = "grid";
+    elements.body.style.display = "none";
+  } else {
+    elements["tab-json"].classList.add("active");
+    elements["tab-form"].classList.remove("active");
+    elements["form-builder"].style.display = "none";
+    elements.body.style.display = "block";
+  }
+}
+
+elements["tab-form"].addEventListener("click", () => switchTab("form"));
+elements["tab-json"].addEventListener("click", () => switchTab("json"));
 
 function renderCatalog(query = "") {
   const needle = query.toLowerCase();
@@ -95,10 +115,88 @@ function selectEndpoint(endpoint, button) {
   button.classList.add("active");
   elements.method.value = endpoint[1];
   elements.path.value = endpoint[2];
+  
+  const sampleObj = endpoint[4] !== undefined ? endpoint[4] : {};
   elements.body.value = endpoint[4] === undefined ? "" : JSON.stringify(endpoint[4], null, 2);
   elements.body.disabled = ["GET", "DELETE"].includes(endpoint[1]);
   elements["request-error"].textContent = "";
+
+  if (["GET", "DELETE"].includes(endpoint[1])) {
+    elements["form-builder"].style.display = "none";
+    elements.body.style.display = "none";
+  } else {
+    buildFormFromJSON(sampleObj);
+    switchTab(activeTab);
+  }
 }
+
+function buildFormFromJSON(jsonObj) {
+  const container = elements["form-builder"];
+  container.replaceChildren();
+
+  if (!jsonObj || typeof jsonObj !== "object" || Object.keys(jsonObj).length === 0) {
+    container.innerHTML = `<p style="grid-column: 1/-1; color: var(--muted); font-size: 12px; margin: 0;">Tidak ada parameter body untuk request ini.</p>`;
+    return;
+  }
+
+  for (const [key, value] of Object.entries(jsonObj)) {
+    const group = document.createElement("div");
+    group.className = "form-field-group";
+
+    const label = document.createElement("label");
+    label.textContent = key;
+    label.setAttribute("for", `input-field-${key}`);
+
+    let input;
+    if (typeof value === "object" && value !== null) {
+      input = document.createElement("textarea");
+      input.rows = 3;
+      input.value = JSON.stringify(value, null, 2);
+    } else {
+      input = document.createElement("input");
+      input.type = typeof value === "number" ? "number" : "text";
+      input.value = value !== undefined && value !== null ? value : "";
+    }
+
+    input.id = `input-field-${key}`;
+    input.setAttribute("data-key", key);
+    input.placeholder = `Masukkan ${key}...`;
+
+    input.addEventListener("input", syncFormToJSON);
+
+    group.append(label, input);
+    container.append(group);
+  }
+}
+
+function syncFormToJSON() {
+  const inputs = elements["form-builder"].querySelectorAll("input, textarea");
+  const payload = {};
+  inputs.forEach((input) => {
+    const key = input.getAttribute("data-key");
+    let val = input.value;
+    if (input.type === "number" && val !== "") {
+      val = Number(val);
+    } else if (input.tagName === "TEXTAREA") {
+      try {
+        val = JSON.parse(val);
+      } catch (_) {}
+    }
+    payload[key] = val;
+  });
+  elements.body.value = JSON.stringify(payload, null, 2);
+}
+
+// Sync JSON body textarea edits back to Form textfields
+elements.body.addEventListener("input", () => {
+  try {
+    const parsed = JSON.parse(elements.body.value);
+    buildFormFromJSON(parsed);
+    elements["request-error"].textContent = "";
+  } catch (e) {
+    // If invalid JSON during typing, ignore sync
+  }
+});
 
 async function sendRequest() {
   elements["request-error"].textContent = "";
@@ -185,4 +283,6 @@ document.addEventListener("keydown", (e) => {
   }
 });
 
+// Initial tab setup
+switchTab("form");
 renderCatalog();
