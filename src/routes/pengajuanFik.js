@@ -10,10 +10,19 @@ const FIK_WEB_STATUS_URL = "https://fik.amikom.ac.id/page/status-pengajuan-layan
 const FIK_TELEGRAM_BOT_URL = "http://t.me/AMIKOMFakultasbot";
 const AUTO_ACC_DELAY_MS = 5000; // 5 Detik Auto-ACC Simulasi FIK
 
-function httpError(status, message) {
-  const error = new Error(message);
-  error.status = status;
-  return error;
+const BULAN_INDONESIA = [
+  "Januari", "Februari", "Maret", "April", "Mei", "Juni",
+  "Juli", "Agustus", "September", "Oktober", "November", "Desember"
+];
+
+function formatIndonesianDate(dateStr) {
+  if (!dateStr) return "";
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return dateStr;
+  const day = String(d.getDate()).padStart(2, "0");
+  const month = BULAN_INDONESIA[d.getMonth()];
+  const year = d.getFullYear();
+  return `${day} ${month} ${year}`;
 }
 
 function resolveAngkatan(mhs) {
@@ -594,6 +603,53 @@ router.get("/all-steps", authenticateToken, async (req, res, next) => {
       };
     }
 
+    // Build unified table rows array for Frontend Dashboard Table (matching screenshot)
+    const riwayatPengajuan = [];
+
+    if (step1Formatted) {
+      riwayatPengajuan.push({
+        id: `step1-${step1Formatted.id_pengajuan}`,
+        step: 1,
+        jenis_pengajuan: step1Formatted.jenis_surat_fakultas || step1Formatted.jenis_program || "Pengajuan ID Magang",
+        sub_info: `Semester ${step1Formatted.semester || 6} - ${step1Formatted.tahun_akademik || "2026/2027"}`,
+        nama_instansi: step1Formatted.nama_instansi || step1Formatted.posisi || "-",
+        kepada_yth: step1Formatted.tujuan_surat ? `Kepada: ${step1Formatted.tujuan_surat}` : "-",
+        tanggal_pengajuan: formatIndonesianDate(step1Formatted.created_at || now),
+        status: (step1Formatted.status_surat_fakultas || "DIPROSES FAKULTAS").toUpperCase(),
+        id_magang_fakultas: step1Formatted.id_magang_fakultas,
+        surat_pengantar_url: step1Formatted.surat_pengantar_url,
+      });
+    }
+
+    if (step2Data) {
+      riwayatPengajuan.push({
+        id: `step2-${step2Data.id_proposal || 1}`,
+        step: 2,
+        jenis_pengajuan: "Pengajuan Proposal Magang",
+        sub_info: `Program: ${step2Data.program_diikuti || "Magang Mandiri"}`,
+        nama_instansi: step2Data.nama_instansi || "-",
+        kepada_yth: `Durasi: ${step2Data.durasi_pelaksanaan || "6 Bulan"}`,
+        tanggal_pengajuan: formatIndonesianDate(step2Data.created_at || now),
+        status: (step2Data.status_review || "REVIEW PROPOSAL PRODI").toUpperCase(),
+        catatan_revisi: step2Data.catatan_revisi,
+        file_proposal_pdf: step2Data.file_proposal_pdf,
+      });
+    }
+
+    if (step3Formatted) {
+      riwayatPengajuan.push({
+        id: `step3-${step3Data?.id_surat || 1}`,
+        step: 3,
+        jenis_pengajuan: "Pengajuan Surat Pengantar Magang",
+        sub_info: `Periode: ${step3Formatted.periode_magang || "6 Bulan"}`,
+        nama_instansi: step1Formatted?.nama_instansi || step2Data?.nama_instansi || "-",
+        kepada_yth: `ID Magang: ${step3Formatted.id_magang}`,
+        tanggal_pengajuan: formatIndonesianDate(step3Data?.created_at || now),
+        status: (step3Formatted.status_surat || "DIPROSES FAKULTAS").toUpperCase(),
+        surat_pengantar_url: step3Formatted.surat_pengantar_url,
+      });
+    }
+
     let currentStep = 1;
     if (step1Formatted && step1Formatted.status_surat_fakultas === "Disetujui") currentStep = 2;
     if (step2Data) currentStep = 3;
@@ -611,9 +667,12 @@ router.get("/all-steps", authenticateToken, async (req, res, next) => {
           angkatan: mhs.angkatan,
         } : null,
         current_step: currentStep,
-        step_1_id_magang_fik: step1Formatted,
-        step_2_proposal_magang: step2Data,
-        step_3_surat_pengantar: step3Formatted,
+        riwayat_pengajuan: riwayatPengajuan,
+        step_details: {
+          step_1_id_magang_fik: step1Formatted,
+          step_2_proposal_magang: step2Data,
+          step_3_surat_pengantar: step3Formatted,
+        },
         tracking_status: {
           web_fik_url: FIK_WEB_STATUS_URL,
           telegram_bot_url: FIK_TELEGRAM_BOT_URL,
@@ -625,8 +684,13 @@ router.get("/all-steps", authenticateToken, async (req, res, next) => {
   }
 });
 
-// Alias route /summary
+// Alias route /summary and /history
 router.get("/summary", authenticateToken, (req, res, next) => {
+  req.url = "/all-steps";
+  router.handle(req, res, next);
+});
+
+router.get("/history", authenticateToken, (req, res, next) => {
   req.url = "/all-steps";
   router.handle(req, res, next);
 });
