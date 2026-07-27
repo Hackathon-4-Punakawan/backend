@@ -37,6 +37,7 @@ const endpointCatalog = [
   ["Surat FIK", "GET", "/api/v1/pengajuan-fik/helper-info", "Pre-fill Data Form FIK (Auto Semester & Academic Year)"],
   ["Surat FIK", "POST", "/api/v1/pengajuan-fik", "Submit Form Pendaftaran FIK (Pengajuan ID Magang / Pra Survey / Id Magang)", { jenis_pengajuan: "Pengajuan ID Magang", kepada_yth: "Yth. Head of Engineering", nama_instansi: "PT Amikom Tech Digital", alamat_instansi: "Jl. Ring Road Utara, Condongcatur, Sleman, Yogyakarta", posisi: "Fullstack Developer Intern", jenis_program: "Magang Mandiri" }],
   ["Surat FIK", "GET", "/api/v1/pengajuan-fik/my-status", "Monitoring Status Pengajuan FIK Mahasiswa (Embedded Links)"],
+  ["Surat FIK", "GET", "/api/v1/pengajuan-fik/all-steps", "Unified Monitoring All Steps 1, 2, & 3 Data"],
   ["Surat FIK", "PATCH", "/api/v1/pengajuan-fik/1/status", "Update Status Surat Fakultas (Admin/Fakultas)", { status_surat_fakultas: "Disetujui", surat_pengantar_url: "https://fik.amikom.ac.id/downloads/surat-pengantar.pdf" }],
 
   // PROPOSAL MAGANG (STEP 2) & REVIEW ADMIN KAPRODI

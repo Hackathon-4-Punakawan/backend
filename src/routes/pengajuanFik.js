@@ -496,4 +496,139 @@ router.patch("/:id/status", authenticateToken, async (req, res, next) => {
   }
 });
 
+// 5. UNIFIED API GET ALL DATA STEP 1, STEP 2, AND STEP 3
+router.get("/all-steps", authenticateToken, async (req, res, next) => {
+  try {
+    const userId = req.user.userId;
+    const { nim: targetNim } = req.query;
+
+    let studentNim = targetNim;
+    let mhs = null;
+
+    if (!studentNim) {
+      const { data: fetchMhs, error: errMhs } = await supabase
+        .from("mahasiswa")
+        .select("*")
+        .eq("user_id", userId)
+        .maybeSingle();
+
+      if (errMhs || !fetchMhs) {
+        throw httpError(404, "Profil mahasiswa tidak ditemukan untuk user ini");
+      }
+      mhs = fetchMhs;
+      studentNim = fetchMhs.nim;
+    } else {
+      const { data: fetchMhs } = await supabase
+        .from("mahasiswa")
+        .select("*")
+        .eq("nim", studentNim)
+        .maybeSingle();
+      mhs = fetchMhs;
+    }
+
+    // Step 1: Fetch Pengajuan ID Magang FIK
+    const { data: listStep1 } = await supabase
+      .from("pengajuan_magang")
+      .select("*")
+      .eq("nim", studentNim)
+      .order("created_at", { ascending: false });
+
+    const step1Data = (listStep1 && listStep1.length > 0) ? listStep1[0] : null;
+    const now = new Date();
+    let step1Formatted = null;
+
+    if (step1Data) {
+      const parsedDate = step1Data.created_at ? new Date(step1Data.created_at) : null;
+      const createdAt = parsedDate && !isNaN(parsedDate.getTime()) ? parsedDate : now;
+      const ageMs = Math.max(0, now.getTime() - createdAt.getTime());
+      const rawStatus = step1Data.status_surat_fakultas || "Diproses Fakultas";
+      const isAutoApproved = rawStatus === "Disetujui" || ageMs >= AUTO_ACC_DELAY_MS;
+      const officialIdMagang = isAutoApproved ? generateOfficialIdMagangFik(step1Data.id_pengajuan) : (step1Data.id_magang_fakultas || "Diproses");
+      const pdfUrl = step1Data.surat_pengantar_url || `https://fik.amikom.ac.id/surat/SURAT-PENGANTAR-${officialIdMagang}.pdf`;
+
+      step1Formatted = {
+        ...step1Data,
+        id_magang_fakultas: officialIdMagang,
+        nomor_layanan_fik: officialIdMagang,
+        status_surat_fakultas: isAutoApproved ? "Disetujui" : "Diproses Fakultas",
+        surat_pengantar_url: isAutoApproved ? pdfUrl : step1Data.surat_pengantar_url,
+      };
+    }
+
+    // Step 2: Fetch Proposal Magang
+    const { data: dbProposals } = await supabase
+      .from("proposal_magang")
+      .select("*")
+      .eq("nim", studentNim)
+      .order("created_at", { ascending: false });
+
+    const step2Data = (dbProposals && dbProposals.length > 0) ? dbProposals[0] : null;
+
+    // Step 3: Fetch Surat Pengantar Magang
+    const { data: dbSurats } = await supabase
+      .from("surat_pengantar_magang")
+      .select("*")
+      .eq("nim", studentNim)
+      .order("created_at", { ascending: false });
+
+    const step3Data = (dbSurats && dbSurats.length > 0) ? dbSurats[0] : null;
+    let step3Formatted = null;
+
+    if (step3Data) {
+      const parsedDate = step3Data.created_at ? new Date(step3Data.created_at) : null;
+      const createdAt = parsedDate && !isNaN(parsedDate.getTime()) ? parsedDate : now;
+      const ageMs = Math.max(0, now.getTime() - createdAt.getTime());
+      const rawStatus = step3Data.status_surat || "Diproses Fakultas";
+      const isApproved = rawStatus === "Disetujui" || ageMs >= AUTO_ACC_DELAY_MS;
+      const officialId = step3Data.id_magang_fakultas || step1Formatted?.id_magang_fakultas || "FIK6199364";
+      const pdfUrl = step3Data.surat_pengantar_url || `https://fik.amikom.ac.id/surat/SURAT-PENGANTAR-${officialId}.pdf`;
+
+      step3Formatted = {
+        email: step3Data.email_mahasiswa || mhs?.email,
+        id_magang: officialId,
+        tanggal_mulai_magang: step3Data.tanggal_mulai || step2Data?.tanggal_mulai || "2026-08-01",
+        tanggal_berakhir_magang: step3Data.tanggal_selesai || step2Data?.tanggal_selesai || "2027-01-31",
+        periode_magang: step3Data.periode_magang || "6 Bulan",
+        status_surat: isApproved ? "Disetujui" : "Diproses Fakultas",
+        surat_pengantar_url: isApproved ? pdfUrl : null,
+      };
+    }
+
+    let currentStep = 1;
+    if (step1Formatted && step1Formatted.status_surat_fakultas === "Disetujui") currentStep = 2;
+    if (step2Data) currentStep = 3;
+    if (step3Formatted && step3Formatted.status_surat === "Disetujui") currentStep = 4;
+
+    res.json({
+      status: 200,
+      message: "Data pengajuan magang Step 1, 2, dan 3 berhasil diambil",
+      data: {
+        mahasiswa: mhs ? {
+          nama: mhs.nama,
+          nim: mhs.nim,
+          email: mhs.email,
+          prodi: mhs.prodi || "Informatika",
+          angkatan: mhs.angkatan,
+        } : null,
+        current_step: currentStep,
+        step_1_id_magang_fik: step1Formatted,
+        step_2_proposal_magang: step2Data,
+        step_3_surat_pengantar: step3Formatted,
+        tracking_status: {
+          web_fik_url: FIK_WEB_STATUS_URL,
+          telegram_bot_url: FIK_TELEGRAM_BOT_URL,
+        },
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Alias route /summary
+router.get("/summary", authenticateToken, (req, res, next) => {
+  req.url = "/all-steps";
+  router.handle(req, res, next);
+});
+
 module.exports = router;
