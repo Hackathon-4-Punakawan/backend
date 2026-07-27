@@ -241,7 +241,7 @@ function mapSavedItemToResponse(item, catalogByCode, durationLabel) {
     durasi: durationLabel,
     nilai_angka: item.nilai_akhir_angka,
     nilai_huruf: item.nilai_akhir_huruf,
-    status_step: item.status_step || item.status_usulan || "Setuju Kaprodi",
+    status_step: item.status_step || item.status_usulan || "Menunggu Review DPL",
   };
 }
 
@@ -434,7 +434,7 @@ router.post("/", authenticateToken, requireRole(["MAHASISWA"]), async (req, res,
         id_pengajuan: pengajuan.id_pengajuan,
         kode_mk: item.kode_mk,
         modul_industri: item.objective,
-        status_step: "Setuju Kaprodi",
+        status_step: "Menunggu Review DPL",
         nilai_akhir_angka: item.nilai_angka,
         nilai_akhir_huruf: item.nilai_huruf,
         updated_at: new Date().toISOString(),
@@ -628,7 +628,7 @@ router.post("/dpl/review", authenticateToken, requireRole(["DPL", "ADMIN_PRODI"]
       throw httpError(400, `Action harus salah satu dari: ${validActions.join(", ")}`);
     }
 
-    const newStatus = chosenAction === "REVISI" ? "Revisi DPL" : "Setuju Kaprodi";
+    const newStatus = chosenAction === "REVISI" ? "Revisi DPL" : "Disetujui DPL";
     const scoreNum = nilai_angka !== undefined && nilai_angka !== null && !isNaN(Number(nilai_angka))
       ? Number(nilai_angka)
       : null;

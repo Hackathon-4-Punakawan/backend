@@ -728,7 +728,7 @@ router.get("/all-steps", authenticateToken, async (req, res, next) => {
           id_konversi: step1Data.id_pengajuan,
           total_sks: dbItems.length * 4,
           mode_input: "AI_RECOMMENDATION",
-          status_konversi: "Setuju Kaprodi",
+          status_konversi: dbItems[0]?.status_step || "Menunggu Review DPL",
           items: dbItems.map((item) => ({
             kode_mk: item.kode_mk,
             nama_mk: item.kode_mk,
