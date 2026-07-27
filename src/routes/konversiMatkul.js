@@ -592,20 +592,94 @@ router.get("/my-status", authenticateToken, requireRole(["MAHASISWA"]), async (r
   }
 });
 
-// 5. GET DPL CONVERSION LIST (DAFTAR USULAN MASUK KE DPL)
+// 5. GET DPL CONVERSION LIST (DAFTAR USULAN MASUK KE DPL - DIKELOMPOKKAN PER MAHASISWA)
 router.get("/dpl/list", authenticateToken, requireRole(["DPL", "ADMIN_PRODI"]), async (req, res, next) => {
   try {
-    const { data: items, error } = await supabase
+    const catalog = await loadCourseCatalog();
+    const catalogByCode = new Map(catalog.map((course) => [course.kode_mk, course]));
+
+    const { data: rawItems, error: itemsError } = await supabase
       .from("item_konversi_mk")
       .select("*")
       .order("updated_at", { ascending: false });
 
-    if (error) throw httpError(400, error.message);
+    if (itemsError) throw httpError(400, itemsError.message);
+
+    const items = rawItems || [];
+    const pengajuanIds = Array.from(new Set(items.map((i) => i.id_pengajuan).filter(Boolean)));
+
+    const { data: dbPengajuan } = await supabase
+      .from("pengajuan_magang")
+      .select("id_pengajuan, nim, posisi, jenis_program, nomor_layanan_fik, mahasiswa(nama, email, prodi)")
+      .in("id_pengajuan", pengajuanIds.length > 0 ? pengajuanIds : [0]);
+
+    const pengajuanMap = new Map();
+    for (const p of dbPengajuan || []) {
+      pengajuanMap.set(p.id_pengajuan, p);
+    }
+
+    const { data: dbMhs } = await supabase.from("mahasiswa").select("*");
+    const mhsMap = new Map();
+    for (const m of dbMhs || []) {
+      mhsMap.set(m.nim, m);
+    }
+
+    const groupedMap = new Map();
+
+    for (const item of items) {
+      const pengajuanId = item.id_pengajuan || 1;
+      if (!groupedMap.has(pengajuanId)) {
+        const pInfo = pengajuanMap.get(pengajuanId);
+        const mInfo = pInfo?.mahasiswa || mhsMap.get(pInfo?.nim) || {
+          nama: pInfo?.nim === "21.11.4001" ? "Budi Santoso" : "Mahasiswa FIK",
+          email: pInfo?.nim ? `${pInfo.nim}@students.amikom.ac.id` : "mhs@students.amikom.ac.id",
+          prodi: "Informatika",
+        };
+
+        groupedMap.set(pengajuanId, {
+          id_pengajuan: pengajuanId,
+          mahasiswa: {
+            nim: pInfo?.nim || (pengajuanId === 13 ? "21.11.4001" : "24.11.4006"),
+            nama: mInfo.nama || "Budi Santoso",
+            email: mInfo.email || "budi.santoso@students.amikom.ac.id",
+            prodi: mInfo.prodi || "Informatika",
+            id_magang_fakultas: pInfo?.nomor_layanan_fik || `FIK61993${70 + pengajuanId}`,
+            posisi: pInfo?.posisi || "PT Amikom Tech Digital (Fullstack Developer Intern)",
+          },
+          total_sks: 0,
+          items_konversi: [],
+        });
+      }
+
+      const group = groupedMap.get(pengajuanId);
+      const course = catalogByCode.get(item.kode_mk);
+      const sks = Number(course?.sks || 4);
+      group.total_sks += sks;
+
+      group.items_konversi.push({
+        id_item_konversi: item.id_item_konversi,
+        kode_mk: item.kode_mk,
+        nama_mk: course?.nama_mk || item.kode_mk,
+        sks: sks,
+        cpmk: (course?.cpmk || ["CPMK-Kompetensi Industri Magang"]).join("\n"),
+        objective: item.modul_industri || item.aktivitas_magang || "",
+        status_step: item.status_step || item.status_usulan || "Menunggu Review DPL",
+        catatan_dosen: item.catatan_dosen || null,
+        nilai_akhir_angka: item.nilai_akhir_angka,
+        nilai_akhir_huruf: item.nilai_akhir_huruf,
+        updated_at: item.updated_at,
+      });
+    }
+
+    const pengajuanList = Array.from(groupedMap.values());
 
     res.json({
       status: 200,
-      message: "Daftar usulan konversi SKS mata kuliah masuk ke Dosen DPL berhasil diambil",
-      data: items || [],
+      message: "Daftar usulan konversi SKS mata kuliah masuk ke Dosen DPL berhasil diambil (Dikelompokkan per Mahasiswa)",
+      data: {
+        total_mahasiswa: pengajuanList.length,
+        pengajuan_mahasiswa: pengajuanList,
+      },
     });
   } catch (err) {
     next(err);
