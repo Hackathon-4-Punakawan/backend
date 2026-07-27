@@ -216,8 +216,7 @@ CREATE TABLE admin_kaprodi (
   {
     "nidn": "0519049003",
     "nama": "Fitriani, M.T.",
-    "email": "fitriani@amikom.ac.id",
-    "bidang_keahlian": "Cloud Infrastructure & Cybersecurity"
+    "email": "fitriani@amikom.ac.id"
   }
   ```
 

@@ -56,15 +56,15 @@ async function seed() {
 
     // 1. Mahasiswa
     await supabase.from("mahasiswa").upsert([
-      { nim: "21.11.4001", user_id: uMhs1?.id || null, nama: "Budi Santoso", prodi: "Informatika", angkatan: "2021", email: "budi.santoso@students.amikom.ac.id", foto_profile: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde" },
-      { nim: "21.11.4002", nama: "Siti Rahmawati", prodi: "Informatika", angkatan: "2021", email: "siti.rahma@students.amikom.ac.id", foto_profile: "https://images.unsplash.com/photo-1494790108377-be9c29b29330" },
-      { nim: "21.11.4003", nama: "Ahmad Rizky", prodi: "Informatika", angkatan: "2021", email: "ahmad.rizky@students.amikom.ac.id", foto_profile: "https://images.unsplash.com/photo-1570295999919-56ceb5ecca61" }
+      { nim: "21.11.4001", user_id: uMhs1?.id || null, nama: "Budi Santoso", prodi: "Informatika", email: "budi.santoso@students.amikom.ac.id", foto_profile: "https://ui-avatars.com/api/?name=Budi+Santoso&background=4f46e5&color=fff&bold=true" },
+      { nim: "21.11.4002", nama: "Siti Rahmawati", prodi: "Informatika", email: "siti.rahma@students.amikom.ac.id", foto_profile: "https://ui-avatars.com/api/?name=Siti+Rahmawati&background=4f46e5&color=fff&bold=true" },
+      { nim: "21.11.4003", nama: "Ahmad Rizky", prodi: "Informatika", email: "ahmad.rizky@students.amikom.ac.id", foto_profile: "https://ui-avatars.com/api/?name=Ahmad+Rizky&background=4f46e5&color=fff&bold=true" }
     ], { onConflict: "nim" });
 
     // 2. Dosen Pembimbing
     await supabase.from("dosen_pembimbing").upsert([
-      { nidn: "0512038901", user_id: uDpl1?.id || null, nama: "Dr. Indah Susanti, M.Kom", bidang_keahlian: "Software Engineering & Web Dev", email: "indah.susanti@amikom.ac.id", foto_profile: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2", is_active: true },
-      { nidn: "0515088502", user_id: uDpl2?.id || null, nama: "Bambang Kurniawan, M.Eng", bidang_keahlian: "Artificial Intelligence & Data", email: "bambang.k@amikom.ac.id", foto_profile: "https://images.unsplash.com/photo-1560250097-0b93528c311a", is_active: true }
+      { nidn: "0512038901", user_id: uDpl1?.id || null, nama: "Dr. Indah Susanti, M.Kom", email: "indah.susanti@amikom.ac.id", foto_profile: "https://ui-avatars.com/api/?name=Indah+Susanti&background=0284c7&color=fff&bold=true", is_active: true },
+      { nidn: "0515088502", user_id: uDpl2?.id || null, nama: "Bambang Kurniawan, M.Eng", email: "bambang.k@amikom.ac.id", foto_profile: "https://ui-avatars.com/api/?name=Bambang+Kurniawan&background=0284c7&color=fff&bold=true", is_active: true }
     ], { onConflict: "nidn" });
 
     // 3. Mitra Industri

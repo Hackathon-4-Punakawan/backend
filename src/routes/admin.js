@@ -34,7 +34,7 @@ router.post("/create-dpl", async (req, res, next) => {
     const nidn = req.body.nidn.trim();
     const nama = req.body.nama.trim();
     const email = req.body.email.trim().toLowerCase();
-    const bidang_keahlian = req.body.bidang_keahlian ? req.body.bidang_keahlian.trim() : null;
+    const foto_profile = req.body.foto_profile || `https://ui-avatars.com/api/?name=${encodeURIComponent(nama)}&background=0284c7&color=fff&bold=true`;
 
     // Check duplicate user email
     const { data: existingUser } = await supabase
@@ -80,8 +80,7 @@ router.post("/create-dpl", async (req, res, next) => {
         user_id: user.id,
         nama,
         email,
-        bidang_keahlian,
-        foto_profile: req.body.foto_profile || null,
+        foto_profile,
         is_active: true,
       })
       .select()

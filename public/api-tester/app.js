@@ -10,7 +10,7 @@ const endpointCatalog = [
   ["Autentikasi", "GET", "/api/v1/auth/me", "Profil User Aktif (/me)"],
 
   // ADMIN MANAGEMENT (SEND EMAIL CREDENTIALS)
-  ["Admin", "POST", "/api/v1/admin/create-dpl", "Tambah DPL & Send Email (Admin Only)", { nidn: "0519049003", nama: "Fitriani, M.T.", email: "fitriani@amikom.ac.id", bidang_keahlian: "Cloud Infrastructure" }],
+  ["Admin", "POST", "/api/v1/admin/create-dpl", "Tambah DPL & Send Email (Admin Only)", { nidn: "0519049003", nama: "Fitriani, M.T.", email: "fitriani@amikom.ac.id" }],
   ["Admin", "POST", "/api/v1/admin/create-mitra", "Tambah Mitra & Send Email (Admin Only)", { nama_perusahaan: "PT Bukalapak.com Tbk", nama_supervisor: "Hendra Wijaya", email: "hendra.wijaya@bukalapak.com", bidang_usaha: "E-Commerce" }],
 
   // MASTER & DATA ENTITIES
