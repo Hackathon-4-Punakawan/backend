@@ -8,6 +8,7 @@ const authRouter = require("./routes/auth");
 const adminRouter = require("./routes/admin");
 const pengajuanFikRouter = require("./routes/pengajuanFik");
 const proposalMagangRouter = require("./routes/proposalMagang");
+const suratPengantarRouter = require("./routes/suratPengantar");
 
 const app = express();
 
@@ -35,6 +36,7 @@ app.use("/api/v1/auth", authRouter);
 app.use("/api/v1/admin", adminRouter);
 app.use("/api/v1/pengajuan-fik", pengajuanFikRouter);
 app.use("/api/v1/proposal-magang", proposalMagangRouter);
+app.use("/api/v1/surat-pengantar", suratPengantarRouter);
 app.use("/api/v1", apiRouter);
 
 app.use((req, res) => {
