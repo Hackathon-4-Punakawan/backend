@@ -120,10 +120,19 @@ router.post("/register-mahasiswa", async (req, res, next) => {
 // 2. LOGIN (PUBLIC - ALL ROLES)
 router.post("/login", async (req, res, next) => {
   try {
-    validateRequired(req.body, ["email_or_identifier", "password"]);
-
-    const identifier = req.body.email_or_identifier.trim();
+    const identifier = (
+      req.body.identifier ||
+      req.body.email_or_identifier ||
+      req.body.email ||
+      req.body.nim ||
+      req.body.nidn ||
+      ""
+    ).trim();
     const password = req.body.password;
+
+    if (!identifier || !password) {
+      throw httpError(400, "Identifier (NIM / NIDN / Email) dan password wajib diisi");
+    }
 
     let targetEmail = identifier.toLowerCase();
 

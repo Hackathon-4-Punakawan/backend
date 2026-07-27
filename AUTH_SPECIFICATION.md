@@ -265,13 +265,15 @@ CREATE TABLE admin_kaprodi (
 
 ---
 
-## 🔑 5. DATA KREDENSIAL AWAL (PRE-SEEDED ACCOUNTS FOR TESTING)
+## 🔑 5. DATA KREDENSIAL AWAL & ATURAN LOGIN PER PERAN
 
-Anda dapat langsung mencoba login dengan akun bawaan berikut:
+Sistem autentikasi mendukung login sesuai dengan jenis identitas masing-masing peran:
 
-| Peran (Role) | Email / Identifier | Password | Hak Akses (Permissions) |
+| Peran (Role) | Identitas Login Utama (Identifier) | Password Bawaan | Keterangan & Hak Akses |
 |---|---|---|---|
-| **ADMIN_PRODI** | `kaprodi.if@amikom.ac.id` | `Admin#1234` | Full Admin & Management Access (DPL, Mitra, Verifikasi) |
-| **DPL** | `indah.susanti@amikom.ac.id` (atau NIDN `0512038901`) | `Dosen#1234` | Review Proposal, Objective CPMK, Review Klaim & Input Nilai DPL |
-| **MITRA** | `rian.hidayat@goto.com` | `Mtr#1234` | Input Evaluasi & Nilai Mitra |
-| **MAHASISWA** | `budi.santoso@students.amikom.ac.id` (atau NIM `21.11.4001`) | `Budi#1234` | Pengajuan Proposal, Logbook, Usulan CPMK, & Klaim Konversi |
+| 🎓 **MAHASISWA** | **NIM** (e.g. `21.11.4001`) | `Budi#1234` | Login menggunakan **NIM** & Password |
+| 👨‍🏫 **DPL** | **NIDN** (e.g. `0512038901`) | `Dosen#1234` | Login menggunakan **NIDN** & Password |
+| 🏢 **MITRA INDUSTRI** | **Email** (`rian.hidayat@goto.com`) | `Mtr#1234` | Login menggunakan **Email** & Password |
+| 🏛️ **ADMIN_PRODI** | **Email** (`kaprodi.if@amikom.ac.id`) | `Admin#1234` | Login menggunakan **Email** & Password |
+
+*(Catatan: Endpoint `/api/v1/auth/login` secara fleksibel dapat menerima payload `identifier`, `email`, `nim`, atau `nidn`)*
