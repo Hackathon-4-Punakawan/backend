@@ -62,6 +62,12 @@ CREATE TABLE IF NOT EXISTS pengajuan_magang (
   id_mitra INT REFERENCES mitra_industri(id_mitra),
   nidn VARCHAR(20) REFERENCES dosen_pembimbing(nidn),
   id_admin INT REFERENCES admin_kaprodi(id_admin),
+  nama_instansi VARCHAR(150),
+  alamat_instansi TEXT,
+  tujuan_surat VARCHAR(150),
+  semester INT,
+  tahun_akademik VARCHAR(20),
+  jenis_surat_fakultas VARCHAR(100),
   nama_supervisor_mitra VARCHAR(100),
   email_supervisor_mitra VARCHAR(100),
   jenis_program VARCHAR(100) NOT NULL, -- Magang Mandiri / MSIB / Studi Independen

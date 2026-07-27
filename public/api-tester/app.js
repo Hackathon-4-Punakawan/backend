@@ -28,7 +28,7 @@ const endpointCatalog = [
   
   // PENGAJUAN & KONVERSI
   ["Pengajuan", "GET", "/api/v1/pengajuan-magang", "Daftar pengajuan"],
-  ["Pengajuan", "POST", "/api/v1/pengajuan-magang", "Buat pengajuan", { nim: "21.11.4001", id_mitra: 1, jenis_program: "Magang Mandiri", posisi: "Backend Developer", durasi_bulan: 6 }],
+  ["Pengajuan", "POST", "/api/v1/pengajuan-magang", "Buat pengajuan", { nim: "21.11.4001", id_mitra: 1, jenis_program: "Magang Mandiri", posisi: "Backend Developer", durasi_bulan: 6, nama_instansi: "PT GoTo Gojek Tokopedia Tbk", alamat_instansi: "Jl. Pasar Raya No. 21 Jakarta", tujuan_surat: "HRD PT GoTo Gojek Tokopedia Tbk", semester: 6, tahun_akademik: "2025/2026", jenis_surat_fakultas: "Surat Pengantar Magang" }],
   ["Pengajuan", "GET", "/api/v1/pengajuan-magang/1/progress", "Progress pengajuan"],
   ["Pengajuan", "POST", "/api/v1/pengajuan-magang/1/submit", "Kirim pengajuan", {}],
   ["Pengajuan", "POST", "/api/v1/pengajuan-magang/1/approve", "Setujui pengajuan", { nidn: "0512038901", id_admin: 1 }],
