@@ -53,8 +53,14 @@ const endpointCatalog = [
   ["Step 3 Surat Pengantar", "GET", "/api/v1/surat-pengantar/my-status", "Monitoring Status & Unduh PDF Surat Pengantar"],
   ["Step 3 Surat Pengantar", "GET", "/api/v1/surat-pengantar/admin/list", "Daftar Pengajuan Surat Pengantar (Admin Dashboard)"],
 
-  // GABUNGAN MONITORING GABUNGAN ALL STEPS (1, 2, 3)
-  ["Summary All Steps", "GET", "/api/v1/pengajuan-fik/all-steps", "GET All Steps 1, 2, & 3 Unified Data & Dashboard Array"],
+  // PENGAJUAN DOSEN PEMBIMBING MAGANG (DPL) - STEP 4
+  ["Step 4 Dosen Pembimbing", "GET", "/api/v1/pengajuan-dpl/helper-info", "Pre-fill Form DPL (Auto Email, ID Magang, Nama, NIM)"],
+  ["Step 4 Dosen Pembimbing", "POST", "/api/v1/pengajuan-dpl", "Submit Form Pengajuan DPL Magang", { sks_ditempuh: 110, bukti_diterima_magang: "https://drive.google.com/file/d/bukti_terima_magang.pdf", file_khs: "https://drive.google.com/file/d/khs_semester.pdf" }],
+  ["Step 4 Dosen Pembimbing", "GET", "/api/v1/pengajuan-dpl/my-status", "Monitoring Status Pengajuan DPL (Plotting & SK Link)"],
+  ["Step 4 Dosen Pembimbing", "GET", "/api/v1/pengajuan-dpl/admin/list", "Daftar Pengajuan DPL (Admin/Kaprodi Dashboard)"],
+
+  // GABUNGAN MONITORING GABUNGAN ALL STEPS (1, 2, 3, 4)
+  ["Summary All Steps", "GET", "/api/v1/pengajuan-fik/all-steps", "GET All Steps 1, 2, 3, & 4 Unified Data & Dashboard Array"],
   ["Summary All Steps", "GET", "/api/v1/pengajuan-fik/history", "GET Riwayat Dashboard Mahasiswa (Tabel Display Format)"],
   
   // KONVERSI & PENILAIAN (70:30)

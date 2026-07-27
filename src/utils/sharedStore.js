@@ -1,8 +1,9 @@
-// Shared in-memory fallback stores to synchronize data across routes
 const memoryProposalStore = [];
 const memorySuratStore = [];
+const memoryDplStore = [];
 
 module.exports = {
   memoryProposalStore,
   memorySuratStore,
+  memoryDplStore,
 };

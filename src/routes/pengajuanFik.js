@@ -9,7 +9,7 @@ const JENIS_PENGAJUAN_VALID = ["Pengajuan ID Magang", "Pra Survey Magang", "Id M
 const FIK_WEB_STATUS_URL = "https://fik.amikom.ac.id/page/status-pengajuan-layanan";
 const FIK_TELEGRAM_BOT_URL = "http://t.me/AMIKOMFakultasbot";
 const AUTO_ACC_DELAY_MS = 5000; // 5 Detik Auto-ACC Simulasi FIK
-const { memoryProposalStore, memorySuratStore } = require("../utils/sharedStore");
+const { memoryProposalStore, memorySuratStore, memoryDplStore } = require("../utils/sharedStore");
 
 const BULAN_INDONESIA = [
   "Januari", "Februari", "Maret", "April", "Mei", "Juni",
@@ -616,6 +616,41 @@ router.get("/all-steps", authenticateToken, async (req, res, next) => {
       };
     }
 
+    // Step 4: Fetch Pengajuan DPL Magang
+    let step4Data = null;
+    const { data: dbDpls } = await supabase
+      .from("pengajuan_dpl")
+      .select("*")
+      .eq("nim", studentNim)
+      .order("created_at", { ascending: false });
+
+    if (dbDpls && dbDpls.length > 0) {
+      step4Data = dbDpls[0];
+    } else {
+      const memoryDpl = memoryDplStore.find((d) => d.nim === studentNim || (mhs && d.nim === mhs.nim));
+      if (memoryDpl) step4Data = memoryDpl;
+    }
+
+    let step4Formatted = null;
+    if (step4Data) {
+      const parsedDate = step4Data.created_at ? new Date(step4Data.created_at) : null;
+      const createdAt = parsedDate && !isNaN(parsedDate.getTime()) ? parsedDate : now;
+      const ageMs = Math.max(0, now.getTime() - createdAt.getTime());
+      const rawStatus = step4Data.status_pengajuan || "Diproses Fakultas";
+      const isApproved = rawStatus === "Disetujui" || ageMs >= AUTO_ACC_DELAY_MS;
+      const officialId = step4Data.id_magang_fakultas || step1Formatted?.id_magang_fakultas || "FIK6199364";
+      const skUrl = step4Data.sk_dpl_url || `https://fik.amikom.ac.id/surat/SK-DPL-${officialId}.pdf`;
+
+      step4Formatted = {
+        ...step4Data,
+        id_magang: officialId,
+        status_pengajuan: isApproved ? "Disetujui" : "Diproses Fakultas",
+        nidn_dpl: isApproved ? (step4Data.nidn_dpl || "0512038901") : null,
+        nama_dpl: isApproved ? (step4Data.nama_dpl || "Drs. Kusrini, M.Kom.") : "Proses Plotting DPL",
+        sk_dpl_url: isApproved ? skUrl : null,
+      };
+    }
+
     // Build unified table rows array for Frontend Dashboard Table (matching screenshot)
     const riwayatPengajuan = [];
 
@@ -663,10 +698,27 @@ router.get("/all-steps", authenticateToken, async (req, res, next) => {
       });
     }
 
+    if (step4Formatted) {
+      riwayatPengajuan.push({
+        id: `step4-${step4Formatted.id_pengajuan_dpl || 1}`,
+        step: 4,
+        jenis_pengajuan: "Pengajuan Dosen Pembimbing Magang",
+        sub_info: `SKS Ditempuh: ${step4Formatted.sks_ditempuh} SKS`,
+        nama_instansi: `DPL: ${step4Formatted.nama_dpl}`,
+        kepada_yth: `ID Magang: ${step4Formatted.id_magang}`,
+        tanggal_pengajuan: formatIndonesianDate(step4Data?.created_at || now),
+        status: (step4Formatted.status_pengajuan || "DIPROSES FAKULTAS").toUpperCase(),
+        sk_dpl_url: step4Formatted.sk_dpl_url,
+        bukti_diterima_magang: step4Formatted.bukti_diterima_magang,
+        file_khs: step4Formatted.file_khs,
+      });
+    }
+
     let currentStep = 1;
     if (step1Formatted && step1Formatted.status_surat_fakultas === "Disetujui") currentStep = 2;
     if (step2Data) currentStep = 3;
     if (step3Formatted && step3Formatted.status_surat === "Disetujui") currentStep = 4;
+    if (step4Formatted) currentStep = 5;
 
     res.json({
       status: 200,
