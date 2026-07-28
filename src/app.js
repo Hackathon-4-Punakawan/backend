@@ -14,6 +14,7 @@ const konversiMatkulRouter = require("./routes/konversiMatkul");
 const suratAkhirMagangRouter = require("./routes/suratAkhirMagang");
 const dosenRouter = require("./routes/dosen");
 const mitraRouter = require("./routes/mitra");
+const dashboardMahasiswaRouter = require("./routes/dashboardMahasiswa");
 
 const app = express();
 
@@ -39,6 +40,8 @@ app.get("/health", async (req, res) => {
 
 app.use("/api/v1/auth", authRouter);
 app.use("/api/v1/admin", adminRouter);
+app.use("/api/v1/mahasiswa", dashboardMahasiswaRouter.router);
+app.use("/api/v1/dashboard/mahasiswa", dashboardMahasiswaRouter.router);
 app.use("/api/v1/pengajuan-fik", pengajuanFikRouter);
 app.use("/api/v1/proposal-magang", proposalMagangRouter);
 app.use("/api/v1/surat-pengantar", suratPengantarRouter);

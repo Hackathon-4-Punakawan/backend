@@ -1,495 +1,222 @@
-# 🎓 Dokumentasi Lengkap Dashboard Mahasiswa BIMA (Magang & Konversi SKS FIK)
+# Dokumentasi Workflow & REST API: Dashboard Mahasiswa (Konversi MBKM Amikom)
 
-Dokumen ini berisi panduan teknis, **workflow**, **userflow**, **arsitektur API**, **struktur database**, dan **interaksi komponen UI** untuk **Dashboard Mahasiswa** pada sistem BIMA (MBKM Fakultas Ilmu Komputer Universitas Amikom Yogyakarta).
+Dokumen ini berisi panduan lengkap integrasi dan spesifikasi REST API untuk **Dashboard Mahasiswa Konversi MBKM**.
 
 ---
 
-## 📌 1. Ikhtisar Sistem & Dashboard Mahasiswa
+## 📌 Base Endpoint URL
 
-Dashboard Mahasiswa merupakan pusat kendali tunggal (*single pane of glass*) bagi mahasiswa Fakultas Ilmu Komputer (FIK) untuk memantau dan menyelesaikan **Tahapan Pengajuan Magang, Konversi SKS, hingga Surat Akhir & Penilaian Mitra**:
-
-```mermaid
-graph LR
-    A[Step 1: Pengajuan ID Magang FIK] --> B[Step 2: Proposal Magang & Review Kaprodi]
-    B --> C[Step 3: Surat Pengantar Magang FIK]
-    C --> D[Step 4: Pengajuan Dosen Pembimbing DPL]
-    D --> E[Step 5: Konversi SKS & Review DPL]
-    E --> F[Akhir Magang: Surat Akhir & Ucapan Terima Kasih FIK]
-    F --> G[Dashboard Mitra: Evaluasi & Penilaian Mitra Industri]
+```http
+GET /api/v1/mahasiswa/dashboard
+GET /api/v1/dashboard/mahasiswa
 ```
 
----
-
-## 🔄 2. Userflow Lengkap (Langkah demi Langkah)
-
-```mermaid
-sequenceDiagram
-    autonumber
-    actor Mahasiswa
-    participant Dashboard as Dashboard UI (React)
-    participant Backend as Backend API (Express.js)
-    participant DPL as Dosen Pembimbing (DPL)
-    participant Mitra as Mitra Industri
-    participant DB as Database (Supabase PostgreSQL)
-
-    %% Step 1
-    rect rgb(240, 245, 255)
-    Note over Mahasiswa, DB: STEP 1: Pengajuan ID Magang ke FIK
-    Mahasiswa->>Dashboard: Input Form Pengajuan (Jenis Program, Posisi, Instansi, Semester)
-    Dashboard->>Backend: POST / PUT /api/v1/pengajuan-fik
-    Backend->>DB: Simpan ke tabel pengajuan_magang (Simulasi 5 Detik Auto-ACC)
-    Backend-->>Dashboard: Respon ID Magang Resmi (cth: FIK6199373) & Status DISETUJUI
-    end
-
-    %% Step 2
-    rect rgb(245, 240, 255)
-    Note over Mahasiswa, DB: STEP 2: Proposal Magang & Review Admin Kaprodi
-    Mahasiswa->>Dashboard: Isi Detail Proposal (Durasi, Esai, Links Dokumen)
-    Dashboard->>Backend: POST / PUT /api/v1/proposal-magang
-    Backend->>DB: Simpan ke tabel proposal_magang (Status: Menunggu Review Kaprodi)
-    Note over Backend, DB: Admin Kaprodi melakukan ACC / Revisi
-    end
-
-    %% Step 3
-    rect rgb(240, 255, 240)
-    Note over Mahasiswa, DB: STEP 3: Pengajuan Surat Pengantar Magang FIK
-    Mahasiswa->>Dashboard: Konfirmasi Periode (5 Fields: Email, ID Magang, Tgl Mulai, Tgl Selesai, Periode)
-    Dashboard->>Backend: POST / PUT /api/v1/surat-pengantar
-    Backend->>DB: Simpan ke tabel surat_pengantar_magang (Simulasi 5 Detik Auto-ACC)
-    Backend-->>Dashboard: PDF Link Resmi (https://fik.amikom.ac.id/surat/SURAT-PENGANTAR-FIK6199373.pdf)
-    end
-
-    %% Step 4
-    rect rgb(255, 245, 240)
-    Note over Mahasiswa, DB: STEP 4: Pengajuan Dosen Pembimbing Magang (DPL)
-    Mahasiswa->>Dashboard: Input Total SKS, Upload Bukti Diterima Magang & KHS
-    Dashboard->>Backend: POST / PUT /api/v1/pengajuan-dpl
-    Backend->>DB: Simpan ke tabel pengajuan_dpl (Auto-Plotting DPL: Drs. Kusrini, M.Kom.)
-    Backend-->>Dashboard: Plotting DPL Selesai & SK DPL URL Terbit
-    end
-
-    %% Step 5
-    rect rgb(255, 255, 240)
-    Note over Mahasiswa, DB: STEP 5: Konversi SKS & Review Penilaian DPL
-    Mahasiswa->>Dashboard: Rekomendasi AI / Input Textfield / Batch Tabel Konversi
-    Dashboard->>Backend: POST /api/v1/konversi-matkul/ai-recommendation
-    Backend-->>Dashboard: Rekomendasi Matkul & Objective Terisi Otomatis
-    Mahasiswa->>Dashboard: Klik SIMPAN Konversi SKS
-    Dashboard->>Backend: POST / PUT /api/v1/konversi-matkul
-    Backend->>DB: Teruskan ke DPL (Drs. Kusrini, M.Kom.) pada tabel item_konversi_mk
-    DPL->>Backend: POST / PUT /api/v1/konversi-matkul/dpl/review (ACC / Revisi / Nilai Opsional)
-    Backend-->>Dashboard: Status Update: DISETUJUI DPL / REVISI DPL
-    end
-
-    %% Akhir Magang
-    rect rgb(240, 250, 255)
-    Note over Mahasiswa, DB: AKHIR MAGANG: Surat Akhir, Ucapan Terima Kasih & Penilaian Mitra
-    Mahasiswa->>Dashboard: GET /api/v1/surat-akhir-magang/helper-info (Auto-prefill Email, Tgl Mulai, Tgl Berakhir, Periode)
-    Mahasiswa->>Dashboard: Klik KIRIM Pengajuan Surat Akhir Magang
-    Dashboard->>Backend: POST / PUT /api/v1/surat-akhir-magang
-    Backend->>DB: Terbitkan PDF Surat Terima Kasih & Teruskan ke Dashboard Mitra
-    Mitra->>Dashboard: GET /api/v1/surat-akhir-magang/mitra/list (Lihat Surat Terima Kasih)
-    Mitra->>Backend: POST / PUT /api/v1/surat-akhir-magang/mitra/submit-nilai (Input Nilai, Feedback, & Sertifikat)
-    Backend-->>Dashboard: Mahasiswa Memantau Status: SUDAH DINILAI MITRA
-    end
-```
+- **Authentication Required**: `Bearer <JWT_TOKEN>` (Header `Authorization`) atau opsional query parameter `?nim=24.11.6666` untuk kemudahan testing.
+- **Roles**: `MAHASISWA` (atau `ADMIN_PRODI` / `DPL` untuk monitoring dashboard mahasiswa).
 
 ---
 
-## ⚡ 3. Aturan Validasi Pengajuan, Semester & Perbaikan (Revisi)
+## 🎨 Komponen UI Dashboard & Struktur Data JSON
 
-1. **Pembatasan 1 Kali per Semester**:
-   - Mahasiswa hanya dapat membuat 1 kali pengajuan magang baru per semester berjalan (HTTP `409 Conflict` jika mencoba membuat pengajuan ganda).
-2. **Pengecualian Status Ditolak / Revisi DPL**:
-   - Jika pengajuan sebelumnya atau mata kuliah konversi mendapatkan status **`Ditolak`** / **`Revisi`** / **`Revisi DPL`**, mahasiswa **DIPERBOLEHKAN untuk mengedit dan mengirimkan kembali (*resubmit*)** pengajuan tersebut pada semester yang sama berdasarkan catatan perbaikan dosen (*catatan_dosen*).
-   - Setelah diperbarui oleh mahasiswa, status otomatis kembali ke **`Menunggu Review DPL`** / **`Diproses`** untuk dievaluasi ulang oleh dosen.
-3. **Dukungan Dual HTTP Method (`POST` & `PUT`)**:
-   - Seluruh endpoint pengajuan (`/pengajuan-fik`, `/proposal-magang`, `/surat-pengantar`, `/pengajuan-dpl`, `/konversi-matkul`, `/surat-akhir-magang`) mendukung method **`POST`** (submit/insert) dan **`PUT`** (update/resubmit).
+API ini mengembalikan seluruh data yang dibutuhkan oleh komponen UI Dashboard Mahasiswa dalam 1 kali panggilan request (*single-call aggregate endpoint*):
+
+| No | Komponen UI | Field JSON Utama | Keterangan |
+| :--- | :--- | :--- | :--- |
+| 1 | **Profile Header** | `data.mahasiswa` | Nama, NIM, Email, Prodi, Angkatan, Foto Profile |
+| 2 | **Hero Card (Purple)** | `data.hero_card` | Status Badge, Nama Instansi, Target Konversi (20/20 SKS, % Tercapai), Metric Pills |
+| 3 | **Dosen Pembimbing Widget** | `data.dosen_pembimbing` | Nama DPL, NIDN, Inisial, Role Tag, Email DPL, Kontak WA |
+| 4 | **Surat Akhir & Ucapan Terima Kasih** | `data.surat_akhir_terima_kasih` | Status Badge (`SIAP AJUKAN` / `SUDAH DIAJUKAN` / `SUDAH DINILAI MITRA`), Email, Periode, Tgl Mulai/Selesai, Button State |
+| 5 | **Progress Konversi per MK Widget** | `data.progress_konversi_mk` | List progress per MK (% progress, warna badge status) |
+| 6 | **Status Konversi Table** | `data.status_konversi_table` | Rincian tabel MK, SKS, Objective Pekerjaan, Nilai Angka, Nilai Huruf, Catatan DPL |
 
 ---
 
-## 📡 4. Unified All-Steps API Contract (Pusat Data Dashboard)
+## 📄 Contoh JSON Response (`200 OK`)
 
-Untuk menampilkan seluruh riwayat dan status perkembangan mahasiswa dalam 1 tampilan tabel ringkas, Frontend memanggil endpoint terpadu:
-
-### **`GET /api/v1/pengajuan-fik/all-steps`**
-**Headers:** `Authorization: Bearer <TOKEN_MAHASISWA>`
-
-#### Sample Response Payload (200 OK):
 ```json
 {
   "status": 200,
-  "message": "Data pengajuan magang Step 1, 2, 3, 4, dan 5 berhasil diambil",
+  "message": "Data Dashboard Mahasiswa berhasil diambil",
   "data": {
     "mahasiswa": {
-      "nama": "Budi Santoso",
-      "nim": "21.11.4001",
-      "email": "budi.santoso@students.amikom.ac.id",
+      "nim": "24.11.6666",
+      "nama": "Fathur Rahman",
+      "email": "fathur.6666@students.amikom.ac.id",
       "prodi": "Informatika",
-      "angkatan": "2021"
+      "angkatan": "2024",
+      "foto_profile": "https://ui-avatars.com/api/?name=Fathur+Rahman&background=4f46e5&color=fff&bold=true"
     },
-    "current_step": 6,
-    "riwayat_pengajuan": [
-      {
-        "id": "step1-13",
-        "step": 1,
-        "jenis_pengajuan": "Pengajuan ID Magang",
-        "sub_info": "Semester 6 - 2026/2027",
-        "nama_instansi": "PT Amikom Tech Digital (Fullstack Engineer Intern)",
-        "kepada_yth": "-",
-        "tanggal_pengajuan": "27 Juli 2026",
-        "status": "DISETUJUI",
-        "id_magang_fakultas": "FIK6199373",
-        "surat_pengantar_url": "https://fik.amikom.ac.id/surat/SURAT-PENGANTAR-FIK6199373.pdf"
+    "hero_card": {
+      "status_badge": "SELESAI VALIDASI",
+      "jenis_program": "Magang Mandiri",
+      "nama_instansi": "PT GoTo Gojek Tokopedia Tbk",
+      "target_konversi": {
+        "disetujui_sks": 20,
+        "target_sks": 20,
+        "persentase": 100,
+        "label": "Target Konversi 20 / 20 SKS",
+        "tercapai_label": "100% Tercapai"
       },
-      {
-        "id": "step2-3",
-        "step": 2,
-        "jenis_pengajuan": "Pengajuan Proposal ke Prodi",
-        "sub_info": "Durasi: 01.08.2026 sampai dengan 31.01.2027",
-        "nama_instansi": "PT Amikom Tech Digital",
-        "kepada_yth": "Admin Kaprodi Informatika",
-        "tanggal_pengajuan": "27 Juli 2026",
-        "status": "DISETUJUI",
-        "proposal_url": "https://drive.google.com/file/d/proposal_magang.pdf"
-      },
-      {
-        "id": "step3-13",
-        "step": 3,
-        "jenis_pengajuan": "Pengajuan Surat Pengantar Magang FIK",
-        "sub_info": "Periode: Semester 6 - 2026/2027",
-        "nama_instansi": "PT Amikom Tech Digital",
-        "kepada_yth": "Dekan FIK Amikom",
-        "tanggal_pengajuan": "27 Juli 2026",
-        "status": "DISETUJUI",
-        "id_magang_fakultas": "FIK6199373",
-        "surat_pengantar_url": "https://fik.amikom.ac.id/surat/SURAT-PENGANTAR-FIK6199373.pdf"
-      },
-      {
-        "id": "step4-1",
-        "step": 4,
-        "jenis_pengajuan": "Pengajuan Dosen Pembimbing",
-        "sub_info": "SKS Ditempuh: 110 SKS",
-        "nama_instansi": "DPL: Drs. Kusrini, M.Kom.",
-        "kepada_yth": "ID Magang: FIK6199373",
-        "tanggal_pengajuan": "27 Juli 2026",
-        "status": "DISETUJUI",
-        "sk_dpl_url": "https://fik.amikom.ac.id/surat/SK-DPL-FIK6199373.pdf",
-        "bukti_diterima_magang": "https://drive.google.com/file/d/bukti_terima.pdf",
-        "file_khs": "https://drive.google.com/file/d/khs.pdf"
-      },
-      {
-        "id": "step5-13",
-        "step": 5,
-        "jenis_pengajuan": "Pengajuan Konversi",
-        "sub_info": "Mode: Rekomendasi AI | DPL: Drs. Kusrini, M.Kom.",
-        "nama_instansi": "Mata Kuliah: ST116, ST091, ST084",
-        "kepada_yth": "Total: 12 SKS",
-        "tanggal_pengajuan": "27 Juli 2026",
-        "status": "DISETUJUI DPL",
-        "items": [
-          {
-            "kode_mk": "ST084",
-            "nama_mk": "Pemrograman Web",
-            "sks": 4,
-            "objective": "Membuat web app responsif dengan REST API Express.js",
-            "status_step": "Disetujui DPL",
-            "catatan_dosen": "Topik objective sesuai dengan CPMK16. Disetujui.",
-            "nilai_angka": 88,
-            "nilai_huruf": "A"
-          },
-          {
-            "kode_mk": "ST116",
-            "nama_mk": "Pemrograman Basis Data",
-            "sks": 4,
-            "objective": "Belajar Fundamen Database. 1. Menerapkan Microservices, SQL query.",
-            "status_step": "Menunggu Review DPL",
-            "catatan_dosen": null,
-            "nilai_angka": null,
-            "nilai_huruf": null
-          }
-        ]
+      "metrics": {
+        "mk_diajukan": 5,
+        "disetujui_kaprodi": 5,
+        "proses_dosen": 0,
+        "durasi_magang": "6 Bulan"
       }
-    ]
+    },
+    "dosen_pembimbing": {
+      "nidn": "0512038901",
+      "nama": "Dr. Indah Susanti, M.Kom",
+      "role_tag": "DOSEN INFORMATIKA",
+      "bidang_keahlian": "Software Engineering & Web Dev",
+      "email": "indah.susanti@amikom.ac.id",
+      "telepon": "+62 812-3456-7890",
+      "foto_profile": "https://ui-avatars.com/api/?name=Dr.+Indah+Susanti%2C+M.Kom&background=0284c7&color=fff&bold=true",
+      "inisial": "IS"
+    },
+    "surat_akhir_terima_kasih": {
+      "judul": "PENGAJUAN SURAT AKHIR DAN UCAPAN TERIMA KASIH MAGANG MAHASISWA FAKULTAS ILMU KOMPUTER",
+      "deskripsi": "Pengajuan administrasi akhir setelah selesai melaksanakan program magang.",
+      "badge_status": "SUDAH DINILAI MITRA",
+      "email": "fathur.6666@students.amikom.ac.id",
+      "periode_magang": "6 Bulan",
+      "tanggal_mulai_magang": "2026-07-27",
+      "tanggal_berakhir_magang": "2026-12-27",
+      "is_submitted": true,
+      "surat_terima_kasih_url": "https://fik.amikom.ac.id/surat/SURAT-UCAPAN-TERIMA-KASIH-FIK24116666.pdf",
+      "nilai_mitra_angka": 95,
+      "nilai_mitra_huruf": "A",
+      "catatan_mitra": "Fathur Rahman berkinerja luar biasa, proaktif, disiplin, dan mahir menguasai REST API, microservices Node.js, dan database PostgreSQL.",
+      "sertifikat_magang_url": "https://drive.google.com/file/d/sertifikat_goto_24_11_6666.pdf",
+      "action_button": {
+        "label": "Surat Akhir & Terima Kasih Telah Diajukan",
+        "is_enabled": false
+      }
+    },
+    "progress_konversi_mk": {
+      "judul": "Progress Konversi per Mata Kuliah",
+      "deskripsi": "Pantau tahapan validasi untuk setiap mata kuliah.",
+      "items": [
+        {
+          "kode_mk": "ST084",
+          "nama_mk": "Pemrograman Web",
+          "sks": 4,
+          "status": "Disetujui DPL",
+          "progress_percent": 100,
+          "color": "green"
+        },
+        {
+          "kode_mk": "ST116",
+          "nama_mk": "Pemrograman Basis Data",
+          "sks": 4,
+          "status": "Disetujui DPL",
+          "progress_percent": 100,
+          "color": "green"
+        },
+        {
+          "kode_mk": "ST091",
+          "nama_mk": "Analisis dan Desain Sistem Informasi",
+          "sks": 4,
+          "status": "Disetujui DPL",
+          "progress_percent": 100,
+          "color": "green"
+        },
+        {
+          "kode_mk": "ST055",
+          "nama_mk": "Kecerdasan Buatan (Artificial Intelligence)",
+          "sks": 4,
+          "status": "Disetujui DPL",
+          "progress_percent": 100,
+          "color": "green"
+        },
+        {
+          "kode_mk": "ST062",
+          "nama_mk": "Jaringan Komputer dan Cloud",
+          "sks": 4,
+          "status": "Disetujui DPL",
+          "progress_percent": 100,
+          "color": "green"
+        }
+      ]
+    },
+    "status_konversi_table": {
+      "judul": "Status Konversi Mata Kuliah",
+      "deskripsi": "Detail pemetaan modul Industri ke mata kuliah universitas.",
+      "action_button": "Simpan Nilai",
+      "rows": [
+        {
+          "kode_mk": "ST084",
+          "nama_mk": "Pemrograman Web",
+          "mk_label": "ST084 - Pemrograman Web",
+          "sks": 4,
+          "objective": "Merancang & mendeploy dashboard React.js responsif.",
+          "nilai_angka": 95,
+          "nilai_huruf": "A",
+          "status": "Disetujui DPL",
+          "catatan_dosen": "Sangat baik, arsitektur frontend rapi."
+        },
+        {
+          "kode_mk": "ST116",
+          "nama_mk": "Pemrograman Basis Data",
+          "mk_label": "ST116 - Pemrograman Basis Data",
+          "sks": 4,
+          "objective": "Mengoptimalkan query PostgreSQL & RLS Policy.",
+          "nilai_angka": 92,
+          "nilai_huruf": "A",
+          "status": "Disetujui DPL",
+          "catatan_dosen": "Query optimization & indexing sangat bagus."
+        },
+        {
+          "kode_mk": "ST091",
+          "nama_mk": "Analisis dan Desain Sistem Informasi",
+          "mk_label": "ST091 - Analisis dan Desain Sistem Informasi",
+          "sks": 4,
+          "objective": "Menyusun dokumentasi arsitektur sistem & Sequence Diagram.",
+          "nilai_angka": 90,
+          "nilai_huruf": "A",
+          "status": "Disetujui DPL",
+          "catatan_dosen": "Dokumentasi sangat lengkap."
+        },
+        {
+          "kode_mk": "ST055",
+          "nama_mk": "Kecerdasan Buatan (Artificial Intelligence)",
+          "mk_label": "ST055 - Kecerdasan Buatan (Artificial Intelligence)",
+          "sks": 4,
+          "objective": "Membangun REST API Express.js & integrasi AI recommendation.",
+          "nilai_angka": 88,
+          "nilai_huruf": "A",
+          "status": "Disetujui DPL",
+          "catatan_dosen": "Integrasi AI sangat canggih."
+        },
+        {
+          "kode_mk": "ST062",
+          "nama_mk": "Jaringan Komputer dan Cloud",
+          "mk_label": "ST062 - Jaringan Komputer dan Cloud",
+          "sks": 4,
+          "objective": "Deployment cloud microservices & CI/CD pipeline.",
+          "nilai_angka": 94,
+          "nilai_huruf": "A",
+          "status": "Disetujui DPL",
+          "catatan_dosen": "CI/CD pipeline berjalan tanpa hambatan."
+        }
+      ]
+    }
   }
 }
 ```
 
 ---
 
-## 📜 5. Endpoint Surat Akhir & Penilaian Mitra Industri (`/api/v1/surat-akhir-magang`)
+## 🖥️ Contoh Panggilan cURL
 
-### **A. GET Prefill Form Otomatis (`GET /api/v1/surat-akhir-magang/helper-info`)**
-Mengambil data prefilled otomatis untuk form pengajuan surat akhir di akhir magang:
-```json
-{
-  "status": 200,
-  "data": {
-    "email": "budi.santoso@students.amikom.ac.id",
-    "id_magang": "FIK6199373",
-    "nama_mahasiswa": "Budi Santoso",
-    "nim": "21.11.4001",
-    "prodi": "Informatika",
-    "nama_instansi": "PT Amikom Tech Digital",
-    "tanggal_mulai_magang": "01 Agustus 2026",
-    "tanggal_berakhir_magang": "31 Januari 2027",
-    "periode_magang": "6 Bulan"
-  }
-}
+```bash
+curl -X GET "http://localhost:3001/api/v1/mahasiswa/dashboard" \
+  -H "Authorization: Bearer <JWT_TOKEN>"
 ```
 
-### **B. POST / PUT Submit Surat Akhir (`POST /api/v1/surat-akhir-magang`)**
-Mengirimkan pengajuan surat akhir dan ucapan terima kasih:
-```json
-{
-  "status": 201,
-  "message": "Pengajuan Surat Akhir dan Ucapan Terima Kasih Magang FIK berhasil dikirim. Surat resmi otomatis diteruskan ke Dashboard Mitra.",
-  "data": {
-    "id_surat_akhir": 1,
-    "email": "budi.santoso@students.amikom.ac.id",
-    "id_magang": "FIK6199373",
-    "status_surat": "Disetujui",
-    "surat_terima_kasih_url": "https://fik.amikom.ac.id/surat/SURAT-UCAPAN-TERIMA-KASIH-FIK6199373.pdf",
-    "status_penilaian_mitra": "Belum Dinilai"
-  }
-}
+Atau uji coba spesifik NIM:
+
+```bash
+curl -X GET "http://localhost:3001/api/v1/mahasiswa/dashboard?nim=24.11.6666" \
+  -H "Authorization: Bearer <JWT_TOKEN>"
 ```
-
-### **C. GET Dashboard Mitra (`GET /api/v1/surat-akhir-magang/mitra/list`)**
-Daftar surat terima kasih yang diterima Mitra Industri untuk dinilai.
-
-### **D. POST / PUT Mitra Submit Penilaian (`POST /api/v1/surat-akhir-magang/mitra/submit-nilai`)**
-Form pengisian nilai & evaluasi kinerja oleh Mitra Industri:
-```json
-// Request Payload:
-{
-  "id_surat_akhir": 1,
-  "nilai_mitra_angka": 95,
-  "nilai_mitra_huruf": "A",
-  "catatan_mitra": "Mahasiswa sangat proaktif, disiplin, dan terampil menguasai REST API dan PostgreSQL.",
-  "sertifikat_magang_url": "https://drive.google.com/file/d/sertifikat_budi.pdf"
-}
-```
-
----
-
-## 🗄️ 6. Arsitektur Database Per Step (*Dedicated Unedited Tables*)
-
-Sesuai aturan sistem **"tiap step tabelnya beda dan tidak saling overwrite"**, berikut adalah struktur 6 tabel utama:
-
-```mermaid
-erdiagram
-    mahasiswa ||--o{ pengajuan_magang : "Step 1"
-    pengajuan_magang ||--o{ proposal_magang : "Step 2"
-    pengajuan_magang ||--o{ surat_pengantar_magang : "Step 3"
-    pengajuan_magang ||--o{ pengajuan_dpl : "Step 4"
-    pengajuan_magang ||--o{ item_konversi_mk : "Step 5"
-    pengajuan_magang ||--o{ surat_akhir_magang : "Akhir Magang"
-
-    pengajuan_magang {
-        int id_pengajuan PK
-        string nim FK
-        string id_magang_fakultas
-        string jenis_program
-        string posisi
-        string status_surat_fakultas
-    }
-
-    proposal_magang {
-        int id_proposal PK
-        string nim FK
-        string durasi_pelaksanaan
-        string deskripsi_kegiatan
-        string status_proposal
-    }
-
-    surat_pengantar_magang {
-        int id_surat PK
-        string id_magang_fakultas
-        string email
-        string surat_pengantar_url
-        string status_surat
-    }
-
-    pengajuan_dpl {
-        int id_pengajuan_dpl PK
-        string nim FK
-        int sks_ditempuh
-        string nidn_dpl
-        string nama_dpl
-        string sk_dpl_url
-    }
-
-    item_konversi_mk {
-        int id_item_konversi PK
-        int id_pengajuan FK
-        string kode_mk
-        string modul_industri
-        string status_step
-        float nilai_akhir_angka
-        string nilai_akhir_huruf
-    }
-
-    surat_akhir_magang {
-        int id_surat_akhir PK
-        int id_pengajuan FK
-        string nim FK
-        string email
-        string surat_terima_kasih_url
-        string status_penilaian_mitra
-        float nilai_mitra_angka
-        string nilai_mitra_huruf
-        string catatan_mitra
-        string sertifikat_magang_url
-    }
-```
-
----
-
-## 💻 7. Kode Integrasi React Component (Dashboard Mahasiswa UI)
-
-```jsx
-import React, { useEffect, useState } from "react";
-
-export default function StudentDashboard() {
-  const [data, setData] = useState(null);
-  const [suratAkhir, setSuratAkhir] = useState(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    Promise.all([
-      fetch("/api/v1/pengajuan-fik/all-steps", {
-        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
-      }).then((res) => res.json()),
-      fetch("/api/v1/surat-akhir-magang/my-status", {
-        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
-      }).then((res) => res.json()),
-    ])
-      .then(([allStepsRes, suratAkhirRes]) => {
-        if (allStepsRes.status === 200) setData(allStepsRes.data);
-        if (suratAkhirRes.status === 200) setSuratAkhir(suratAkhirRes.data);
-      })
-      .finally(() => setLoading(false));
-  }, []);
-
-  if (loading) return <div className="p-8 text-center font-semibold">Memuat Dashboard BIMA...</div>;
-  if (!data) return <div className="p-8 text-center text-red-500">Gagal mengambil data dashboard.</div>;
-
-  return (
-    <div className="max-w-6xl mx-auto p-6 space-y-6">
-      {/* Header Profile Mahasiswa */}
-      <div className="bg-gradient-to-r from-indigo-700 to-purple-700 text-white p-6 rounded-2xl shadow-lg">
-        <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-2xl font-bold">{data.mahasiswa.nama}</h1>
-            <p className="text-indigo-200">NIM: {data.mahasiswa.nim} | Prodi: {data.mahasiswa.prodi} ({data.mahasiswa.angkatan})</p>
-          </div>
-          <div className="bg-white/20 backdrop-blur-md px-4 py-2 rounded-xl text-center">
-            <span className="text-xs uppercase tracking-wider text-indigo-100">Tahap Saat Ini</span>
-            <div className="text-2xl font-extrabold">Step {data.current_step} / 5</div>
-          </div>
-        </div>
-      </div>
-
-      {/* Card Status Surat Akhir & Penilaian Mitra */}
-      {suratAkhir && (
-        <div className="bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 p-5 rounded-2xl flex justify-between items-center">
-          <div>
-            <div className="text-xs font-bold uppercase tracking-wider text-emerald-800">Surat Akhir & Ucapan Terima Kasih FIK</div>
-            <div className="text-sm font-semibold text-emerald-900 mt-1">Status Penilaian Mitra: <span className="font-bold underline">{suratAkhir.status_penilaian_mitra}</span></div>
-            {suratAkhir.nilai_mitra_angka && (
-              <div className="text-xs text-emerald-700 mt-1">
-                Nilai Industri: <b>{suratAkhir.nilai_mitra_angka} ({suratAkhir.nilai_mitra_huruf})</b> — "{suratAkhir.catatan_mitra}"
-              </div>
-            )}
-          </div>
-          <div className="flex gap-2">
-            {suratAkhir.surat_terima_kasih_url && (
-              <a href={suratAkhir.surat_terima_kasih_url} target="_blank" rel="noreferrer" className="bg-emerald-600 text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-emerald-700 shadow-sm">
-                📄 Download Surat Terima Kasih
-              </a>
-            )}
-            {suratAkhir.sertifikat_magang_url && (
-              <a href={suratAkhir.sertifikat_magang_url} target="_blank" rel="noreferrer" className="bg-teal-600 text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-teal-700 shadow-sm">
-                📜 Sertifikat Magang Mitra
-              </a>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Tabel Riwayat Pengajuan All Steps */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-        <div className="p-5 border-b border-gray-100 flex justify-between items-center">
-          <h2 className="font-bold text-lg text-gray-800">Riwayat Pengajuan Magang & Konversi SKS</h2>
-          <span className="text-xs text-gray-500">{data.riwayat_pengajuan.length} Tahap Terdaftar</span>
-        </div>
-
-        <table className="w-full text-left border-collapse">
-          <thead>
-            <tr className="bg-gray-50 text-gray-500 text-xs uppercase font-semibold">
-              <th className="p-4">Step</th>
-              <th className="p-4">Jenis Pengajuan</th>
-              <th className="p-4">Instansi / DPL / Matkul</th>
-              <th className="p-4">Tanggal</th>
-              <th className="p-4 text-center">Status</th>
-              <th className="p-4 text-center">Aksi / Dokumen</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100 text-sm">
-            {data.riwayat_pengajuan.map((row) => (
-              <tr key={row.id} className="hover:bg-gray-50/50 transition">
-                <td className="p-4 font-bold text-indigo-600">Step {row.step}</td>
-                <td className="p-4">
-                  <div className="font-semibold text-gray-800">{row.jenis_pengajuan}</div>
-                  <div className="text-xs text-gray-400">{row.sub_info}</div>
-                </td>
-                <td className="p-4 text-gray-700">{row.nama_instansi}</td>
-                <td className="p-4 text-gray-500 text-xs">{row.tanggal_pengajuan}</td>
-                <td className="p-4 text-center">
-                  <span className={`px-3 py-1 rounded-full text-xs font-bold ${
-                    row.status === "DISETUJUI" || row.status === "DISETUJUI DPL"
-                      ? "bg-green-100 text-green-700"
-                      : row.status.includes("MENUNGGU")
-                      ? "bg-amber-100 text-amber-700"
-                      : "bg-purple-100 text-purple-700"
-                  }`}>
-                    {row.status}
-                  </span>
-                </td>
-                <td className="p-4 text-center">
-                  {row.surat_pengantar_url && (
-                    <a href={row.surat_pengantar_url} target="_blank" rel="noreferrer" className="text-indigo-600 font-semibold hover:underline text-xs">
-                      📄 Surat Pengantar
-                    </a>
-                  )}
-                  {row.sk_dpl_url && (
-                    <a href={row.sk_dpl_url} target="_blank" rel="noreferrer" className="text-purple-600 font-semibold hover:underline text-xs">
-                      📜 SK DPL
-                    </a>
-                  )}
-                  {row.step === 5 && (
-                    <button className="bg-indigo-50 text-indigo-600 px-3 py-1 rounded-lg text-xs font-bold hover:bg-indigo-100">
-                      Lihat Tabel Konversi
-                    </button>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-}
-```
-
----
-
-## 🏆 Kesimpulan & Fitur Unggulan Dashboard Mahasiswa:
-1. 📊 **Single Endpoint Aggregation**: Cukup panggil `GET /all-steps` untuk mendapatkan seluruh riwayat tahapan secara instan.
-2. 🔒 **Separasi Tabel**: Menggunakan 6 tabel PostgreSQL terpisah tanpa saling merusak (*un-edited tables per step*).
-3. 🤖 **Integrasi AI**: Step 5 mendukung pencocokan deskripsi jobdesk magang dengan CPMK kurikulum dan penyesuaian interaktif oleh mahasiswa.
-4. 👨‍🏫 **Direct DPL Linking**: Pengajuan Step 5 secara otomatis terhubung ke DPL yang di-plot pada Step 4, dengan pengelompokan per mahasiswa pada Dashboard DPL.
-5. 🏢 **Integrasi Akhir Magang & Mitra**: Surat Ucapan Terima Kasih otomatis diteruskan ke Dashboard Mitra, di mana Mitra Industri dapat memasukkan Nilai Angka, Nilai Huruf, Feedback Evaluasi, dan Sertifikat Magang.
-6. ⚡ **Dual HTTP Method**: Seluruh API mendukung method `POST` dan `PUT` untuk kenyamanan pengembangan Frontend.

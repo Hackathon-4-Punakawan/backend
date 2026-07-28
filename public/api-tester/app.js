@@ -34,6 +34,12 @@ const endpointCatalog = [
   ["Dashboard Admin Kaprodi", "POST", "/api/v1/admin/mata-kuliah", "10. Master Data: Tambah Mata Kuliah & Deskripsi CPMK Baru", { kode_mk: "ST120", nama_mk: "Cloud & Microservices Architecture", sks: 4, semester: 6, cpmk: "CPMK20-Mahasiswa mampu merancang arsitektur cloud & microservices skala besar", kategori: "Wajib Prodi" }],
   ["Dashboard Admin Kaprodi", "GET", "/api/v1/admin/cpl-cpmk", "11. Master Data: Daftar CPL & CPMK", {}],
 
+  // 👨‍🎓 KATEGORI KHUSUS: DASHBOARD MAHASISWA (FULL UI MATCH)
+  ["Dashboard Mahasiswa", "POST", "/api/v1/auth/login", "1. Login Mahasiswa Complete (NIM 24.11.6666)", { identifier: "24.11.6666", password: "12345678" }],
+  ["Dashboard Mahasiswa", "GET", "/api/v1/mahasiswa/dashboard", "2. Full Dashboard Data (Hero Card, DPL, Surat Akhir, Progress & Table MK)", {}],
+  ["Dashboard Mahasiswa", "GET", "/api/v1/mahasiswa/dashboard?nim=24.11.6666", "3. Full Dashboard Data (NIM 24.11.6666 - Fathur Rahman)", {}],
+  ["Dashboard Mahasiswa", "GET", "/api/v1/mahasiswa/dashboard?nim=21.11.4001", "4. Full Dashboard Data (NIM 21.11.4001 - Budi Santoso)", {}],
+
   // AUTENTIKASI & USER MANAGEMENT
   ["Autentikasi", "POST", "/api/v1/auth/register-mahasiswa", "Registrasi Mahasiswa Mandiri", { nim: "21.11.4005", nama: "Rizky Ramadhan", email: "rizky.ramadhan@students.amikom.ac.id", password: "Password123" }],
   ["Autentikasi", "POST", "/api/v1/auth/login", "⭐️ Login Mahasiswa Complete (NIM: 24.11.6666 / Pass: 12345678)", { identifier: "24.11.6666", password: "12345678" }],
