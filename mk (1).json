@@ -1,0 +1,230 @@
+[
+    {
+        "kode" : "ST044",
+        "nama" : "Metode Numerik",
+        "sks"  : 4,
+        "cpmk" : [
+            "Mahasiswa mengamalkan sikap mental positif melalui komunikasi lisan dan tulisan yang berkaitan dengan aspek teknis maupun nonteknis.",
+            "Mahasiswa mampu menerapkan metode analisis data.",
+            "Mahasiswa mampu menerapkan teknik pengolahan data untuk menyelesaikan masalah."
+        ]
+    },
+    {
+        "kode" : "ST050",
+        "nama" : "Manajemen Strategik",
+        "sks"  : 2,
+        "cpmk" : [
+            "Mahasiswa menerapkan sikap profesional dalam memimpin tim dengan penuh tanggung jawab terhadap pekerjaannya.",
+            "Mahasiswa mengimplementasikan profesionalisme dalam menyesuaikan diri dengan berbagai kegiatan secara simultan dalam berbagai kondisi.",
+            "Mahasiswa mampu menyampaikan pandangan atau gagasan yang kritis dan profesional dalam menyelesaikan masalah di industri.",
+            "Mahasiswa mampu memecahkan masalah industri secara inovatif."
+        ]
+    },
+    {
+        "kode" : "ST087",
+        "nama" : "Manajemen Sumber Daya IT",
+        "sks"  : 2,
+        "cpmk" : [
+            "Mahasiswa mampu menyampaikan pandangan atau gagasan yang kritis dan profesional dalam menyelesaikan masalah di industri.",
+            "Mahasiswa mampu menerapkan ilmu pengetahuan di bidang informatika untuk menyelesaikan masalah di industri.",
+            "Mahasiswa mampu menerapkan teknik pengolahan data untuk menyelesaikan masalah."
+        ]
+    },
+    {
+        "kode" : "ST108",
+        "nama" : "E-Commerce",
+        "sks"  : 2,
+        "cpmk" : [
+            "Mahasiswa membangun integritas dengan menjalin kerja sama dalam tim untuk menyelesaikan tugas.",
+            "Mahasiswa mampu menerapkan teknik analisis data.",
+            "Mahasiswa mampu menerapkan teknik pengolahan data untuk menyelesaikan masalah."
+        ]
+    },
+    {
+        "kode" : "ST116",
+        "nama" : "Pemrograman Basis Data",
+        "sks"  : 4,
+        "cpmk" : [
+            "Mahasiswa mampu menganalisis perangkat lunak pada berbagai platform digital.",
+            "Mahasiswa mampu merancang perangkat lunak pada berbagai platform digital.",
+            "Mahasiswa mampu menganalisis platform yang sesuai dengan kebutuhan industri atau masyarakat."
+        ]
+    },
+    {
+        "kode" : "ST120",
+        "nama" : "Bahasa Indonesia",
+        "sks"  : 2,
+        "cpmk" : [
+            "Mahasiswa memiliki sikap tanggung jawab dengan membangun integritas profesional serta berkomitmen terhadap nilai-nilai etika.",
+            "Mahasiswa mampu menyampaikan pandangan atau gagasan yang kritis dan profesional dalam menyelesaikan masalah di industri."
+        ]
+    },
+    {
+        "kode" : "ST132",
+        "nama" : "Infrastruktur Web & Internet",
+        "sks"  : 2,
+        "cpmk" : [
+            "Mahasiswa mampu mengonfigurasi sistem jaringan komputer sesuai kebutuhan pengguna.",
+            "Mahasiswa mampu menerapkan konsep keamanan jaringan sesuai dengan kebutuhan pengguna.",
+            "Mahasiswa mampu mengidentifikasi komponen dan perangkat yang dibutuhkan untuk membangun jaringan komputer."
+        ]
+    },
+    {
+        "kode" : "ST143",
+        "nama" : "Perancangan Jaringan",
+        "sks"  : 4,
+        "cpmk" : [
+            "Mahasiswa mampu menjelaskan metodologi dalam membangun jaringan komputer.",
+            "Mahasiswa mampu menguraikan konsep jaringan komputer sesuai dengan kebutuhan pengguna."
+        ]
+    },
+    {
+        "kode" : "ST150",
+        "nama" : "Kepemimpinan",
+        "sks"  : 2,
+        "cpmk" : [
+            "Mahasiswa memiliki sikap tanggung jawab dengan membangun integritas profesional serta berkomitmen terhadap nilai-nilai etika.",
+            "Mahasiswa membangun integritas dengan menjalin kerja sama dalam tim untuk menyelesaikan tugas.",
+            "Mahasiswa menerapkan sikap profesional dalam memimpin tim dengan penuh tanggung jawab terhadap pekerjaannya.",
+            "Mahasiswa mampu memecahkan masalah industri secara inovatif."
+        ]
+    },
+    {
+        "kode" : "ST153",
+        "nama" : "Big Data & Predictive Analytics",
+        "sks"  : 2,
+        "cpmk" : [
+            "Mahasiswa mampu menerapkan metode pengolahan data.",
+            "Mahasiswa mampu menerapkan teknik analisis data.",
+            "Mahasiswa mampu menerapkan teknik pengolahan data untuk menyelesaikan masalah."
+        ]
+    },
+    {
+        "kode" : "ST154",
+        "nama" : "Internet of Things",
+        "sks"  : 2,
+        "cpmk" : [
+            "Mahasiswa mampu menerapkan teknik akuisisi data.",
+            "Mahasiswa mampu menerapkan metodologi pengembangan sistem jaringan komputer.",
+            "Mahasiswa mampu menerapkan konsep arsitektur dan organisasi komputer untuk mendukung sistem jaringan komputer.",
+            "Mahasiswa mampu menerapkan konsep keamanan jaringan sesuai dengan kebutuhan pengguna."
+        ]
+    },
+    {
+        "kode" : "ST155",
+        "nama" : "Digital Business",
+        "sks"  : 2,
+        "cpmk" : [
+            "Mahasiswa mengamalkan sikap mental positif melalui komunikasi lisan dan tulisan yang berkaitan dengan aspek teknis maupun nonteknis.",
+            "Mahasiswa mengimplementasikan profesionalisme dalam menyesuaikan diri dengan berbagai kegiatan secara simultan dalam berbagai kondisi.",
+            "Mahasiswa mampu menerapkan ilmu pengetahuan di bidang informatika untuk menyelesaikan masalah di industri.",
+            "Mahasiswa mampu menghasilkan produk ekonomi kreatif digital di bidang informatika."
+        ]
+    },
+    {
+        "kode" : "ST163",
+        "nama" : "Inovasi Pembayaran Digital",
+        "sks"  : 2,
+        "cpmk" : [
+            "Mahasiswa mampu menyampaikan pandangan atau gagasan yang kritis dan profesional dalam menyelesaikan masalah di industri.",
+            "Mahasiswa mampu menerapkan ilmu pengetahuan di bidang informatika untuk menyelesaikan masalah di industri."
+        ]
+    },    
+    {
+        "kode" : "ST164",
+        "nama" : "Kecerdasan Buatan Lanjut",
+        "sks"  : 2,
+        "cpmk" : [
+            "Mahasiswa mampu menerapkan metode analisis data.",
+            "Mahasiswa mampu menerapkan metode evaluasi data.",
+            "Mahasiswa mampu menjelaskan konsep teknik akuisisi data.",
+            "Mahasiswa mampu menerapkan teknik pengolahan data untuk menyelesaikan masalah."
+        ]
+    },
+    {
+        "kode" : "ST165",
+        "nama" : "Proyek Pemrograman",
+        "sks"  : 4,
+        "cpmk" : [
+            "Mahasiswa mampu menyampaikan pandangan atau gagasan yang kritis dan profesional dalam menyelesaikan masalah di industri.",
+            "Mahasiswa mampu menghasilkan produk ekonomi kreatif digital di bidang informatika.",
+            "Mahasiswa mampu merancang perangkat lunak pada berbagai platform digital.",
+            "Mahasiswa mampu menganalisis platform yang sesuai dengan kebutuhan industri atau masyarakat."
+        ]
+    },
+    {
+        "kode" : "ST166",
+        "nama" : "Proyek Game",
+        "sks"  : 4,
+        "cpmk" : [
+            "Mahasiswa mampu menerapkan ilmu pengetahuan di bidang informatika untuk menyelesaikan masalah di industri.",
+            "Mahasiswa mampu membuat produk digital.",
+            "Mahasiswa mampu menjelaskan jenis-jenis produk digital."
+        ]
+    },
+    {
+        "kode" : "ST167",
+        "nama" : "Proyek Data Mining",
+        "sks"  : 4,
+        "cpmk" : [
+            "Mahasiswa mampu menyampaikan pandangan atau gagasan yang kritis dan profesional dalam menyelesaikan masalah di industri.",
+            "Mahasiswa mampu menganalisis kebutuhan industri atau masyarakat.",
+            "Mahasiswa mampu menerapkan metode analisis data.",
+            "Mahasiswa mampu menerapkan metode pengolahan data."
+        ]
+    },
+    {
+        "kode" : "ST168",
+        "nama" : "Big Data & Data Mining",
+        "sks"  : 4,
+        "cpmk" : [
+            "Mahasiswa mampu menerapkan teknik akuisisi data.",
+            "Mahasiswa mampu menerapkan metode analisis data.",
+            "Mahasiswa mampu menerapkan metode evaluasi data.",
+            "Mahasiswa mampu menjelaskan konsep teknik akuisisi data."
+        ]
+    },
+    {
+        "kode" : "ST170",
+        "nama" : "Rekayasa Perangkat Lunak",
+        "sks"  : 4,
+        "cpmk" : [
+            "Mahasiswa mengamalkan sikap mental positif melalui komunikasi lisan dan tulisan yang berkaitan dengan aspek teknis maupun nonteknis.",
+            "Mahasiswa mampu menerapkan ilmu pengetahuan di bidang informatika untuk menyelesaikan masalah di industri.",
+            "Mahasiswa mampu merancang perangkat lunak pada berbagai platform digital.",
+            "Mahasiswa mampu menganalisis platform yang sesuai dengan kebutuhan industri atau masyarakat."
+        ]
+    },
+    {
+        "kode" : "ST173",
+        "nama" : "Media Interaktif",
+        "sks"  : 4,
+        "cpmk" : [
+            "Mahasiswa mampu menerapkan prinsip-prinsip multimedia pada produk digital.",
+            "Mahasiswa mampu menguraikan komponen multimedia.",
+            "Mahasiswa mampu menjelaskan jenis-jenis produk digital."
+        ]
+    },
+    {
+        "kode" : "ST175",
+        "nama" : "Komunikasi dan Negosiasi",
+        "sks"  : 2,
+        "cpmk" : [
+            "Mahasiswa mengamalkan sikap mental positif melalui komunikasi lisan dan tulisan yang berkaitan dengan aspek teknis maupun nonteknis.",
+            "Mahasiswa membangun integritas dengan menjalin kerja sama dalam tim untuk menyelesaikan tugas.",
+            "Mahasiswa mampu menyampaikan pandangan atau gagasan yang kritis dan profesional dalam menyelesaikan masalah di industri.",
+            "Mahasiswa mampu memecahkan masalah industri secara inovatif."
+        ]
+    },
+    {
+        "kode" : "ST178",
+        "nama" : "Mixed Reality",
+        "sks"  : 4,
+        "cpmk" : [
+            "Mahasiswa mampu menyampaikan pandangan atau gagasan yang kritis dan profesional dalam menyelesaikan masalah di industri.",
+            "Mahasiswa mampu memecahkan masalah industri secara inovatif.",
+            "Mahasiswa mampu menerapkan metode pengolahan data.",
+            "Mahasiswa mampu menjelaskan jenis-jenis produk digital."
+        ]
+    }
+]
