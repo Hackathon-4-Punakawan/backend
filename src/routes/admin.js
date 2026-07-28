@@ -929,4 +929,78 @@ router.get(["/export/mitra", "/export-mitra"], async (req, res, next) => {
   }
 });
 
+// 7d. Export Data Katalog Mata Kuliah & CPMK
+router.get(["/export/mata-kuliah", "/export-mata-kuliah"], async (req, res, next) => {
+  try {
+    const format = req.query.format || "excel";
+
+    const { data: dbMK } = await supabase.from("mata_kuliah").select("*").order("kode_mk", { ascending: true });
+    const mkList = dbMK && dbMK.length > 0 ? dbMK : memoryMataKuliahCatalog;
+
+    const headers = [
+      "Kode MK",
+      "Nama Mata Kuliah",
+      "SKS",
+      "Semester",
+      "Deskripsi CPMK",
+      "Kategori",
+    ];
+
+    const rows = mkList.map((m) => [
+      m.kode_mk,
+      m.nama_mk,
+      m.sks,
+      m.semester || 6,
+      m.cpmk || m.deskripsi_cpmk || m.deskripsi || "CPMK-Matkul Informatika",
+      m.kategori || "Wajib Prodi",
+    ]);
+
+    sendExportResponse(res, "Katalog_Mata_Kuliah_dan_CPMK_Informatika", headers, rows, format);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// 7e. Bulk Import Data Katalog Mata Kuliah & CPMK
+router.post(["/import/mata-kuliah", "/import-mata-kuliah"], async (req, res, next) => {
+  try {
+    const items = req.body.items || req.body.mata_kuliah || [];
+    if (!Array.isArray(items) || items.length === 0) {
+      throw httpError(400, "Payload 'items' berupa array mata kuliah wajib disertakan");
+    }
+
+    const insertedList = [];
+    for (const item of items) {
+      if (!item.kode_mk || !item.nama_mk) continue;
+
+      const payload = {
+        kode_mk: String(item.kode_mk).trim().toUpperCase(),
+        nama_mk: String(item.nama_mk).trim(),
+        sks: Number(item.sks) || 4,
+        semester: Number(item.semester) || 6,
+        cpmk: item.cpmk ? String(item.cpmk).trim() : `CPMK-${item.kode_mk}: CPMK Pembelajaran ${item.nama_mk}`,
+        kategori: item.kategori ? String(item.kategori).trim() : "Wajib Prodi",
+        is_active: true,
+      };
+
+      // Try insert to DB
+      const { data: dbItem } = await supabase.from("mata_kuliah").insert(payload).select().maybeSingle();
+      
+      memoryMataKuliahCatalog.push({ id_mk: Date.now() + Math.floor(Math.random() * 1000), ...payload });
+      insertedList.push(dbItem || payload);
+    }
+
+    res.status(201).json({
+      status: 201,
+      message: `Berhasil mengimpor ${insertedList.length} Mata Kuliah & CPMK ke dalam katalog prodi`,
+      data: {
+        total_imported: insertedList.length,
+        items: insertedList,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
 module.exports = router;
