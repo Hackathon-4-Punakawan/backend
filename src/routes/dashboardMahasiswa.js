@@ -269,7 +269,11 @@ async function getMahasiswaDashboard(req, res, next) {
       }
     }
 
-    if (step5Items.length === 0) {
+    const hasAnyRealPengajuan = Boolean(step1Data || step2Data || step3Data || step4Data || step5Header);
+    const isDemoAccount = targetNim === "24.11.6666" || targetNim === "24.11.5556" || targetNim === "21.11.4001";
+    const hasPengajuan = hasAnyRealPengajuan || isDemoAccount;
+
+    if (step5Items.length === 0 && hasPengajuan) {
       step5Items = DEFAULT_COURSES;
     }
 
@@ -289,8 +293,8 @@ async function getMahasiswaDashboard(req, res, next) {
 
     // DPL Profile Lookup
     let dplProfile = {
-      nidn: step4Data?.nidn_dpl || "0512038901",
-      nama: step4Data?.nama_dpl || "Dr. Indah Susanti, M.Kom",
+      nidn: step4Data?.nidn_dpl || (hasPengajuan ? "0512038901" : null),
+      nama: step4Data?.nama_dpl || (hasPengajuan ? "Dr. Indah Susanti, M.Kom" : "Belum Ada DPL"),
       role_tag: "DOSEN INFORMATIKA",
       bidang_keahlian: "Software Engineering & Web Dev",
       email: "indah.susanti@amikom.ac.id",
@@ -329,13 +333,16 @@ async function getMahasiswaDashboard(req, res, next) {
     const totalSksDisetujui = isDplApproved ? totalSksUsulan : step5Items.filter((i) => (i.status_item || "").includes("Disetujui")).reduce((sum, item) => sum + Number(item.sks || 4), 0);
     const percentage = totalSksUsulan > 0 ? Math.round((totalSksDisetujui / totalSksUsulan) * 100) : 0;
 
-    const namaInstansi = step1Data?.nama_instansi || step2Data?.nama_instansi || "PT GoTo Gojek Tokopedia Tbk";
-    const jenisProgram = step2Data?.program_diikuti || step1Data?.jenis_program || "Magang Mandiri";
-    const durasiMagang = step3Data?.periode_magang || step2Data?.durasi_pelaksanaan || "6 Bulan";
+    const namaInstansi = step1Data?.nama_instansi || step2Data?.nama_instansi || (hasPengajuan ? "PT GoTo Gojek Tokopedia Tbk" : null);
+    const jenisProgram = step2Data?.program_diikuti || step1Data?.jenis_program || (hasPengajuan ? "Magang Mandiri" : null);
+    const durasiMagang = step3Data?.periode_magang || step2Data?.durasi_pelaksanaan || (hasPengajuan ? "6 Bulan" : "-");
 
-    let heroStatusBadge = "SELESAI VALIDASI";
-    if (!isDplApproved && step5Header) heroStatusBadge = "MENUNGGU REVIEW DOSEN";
-    if (!step5Header && percentage < 100) heroStatusBadge = "PROSES PENGAJUAN";
+    let heroStatusBadge = "BELUM DIAJUKAN";
+    if (hasPengajuan) {
+      heroStatusBadge = "SELESAI VALIDASI";
+      if (!isDplApproved && step5Header) heroStatusBadge = "MENUNGGU REVIEW DOSEN";
+      if (!step5Header && percentage < 100) heroStatusBadge = "PROSES PENGAJUAN";
+    }
 
     // Format Table Rows
     const tableRows = step5Items.map((item) => ({
@@ -361,11 +368,11 @@ async function getMahasiswaDashboard(req, res, next) {
     }));
 
     // Format Surat Akhir Card Data
-    const tglMulai = step3Data?.tanggal_mulai || step2Data?.tanggal_mulai || "2026-07-27";
-    const tglSelesai = step3Data?.tanggal_selesai || step3Data?.tanggal_berakhir || step2Data?.tanggal_selesai || "2026-12-27";
+    const tglMulai = step3Data?.tanggal_mulai || step2Data?.tanggal_mulai || (hasPengajuan ? "2026-07-27" : "-");
+    const tglSelesai = step3Data?.tanggal_selesai || step3Data?.tanggal_berakhir || step2Data?.tanggal_selesai || (hasPengajuan ? "2026-12-27" : "-");
 
     const isSuratAkhirSubmitted = !!step6Data;
-    let suratAkhirBadge = "SIAP AJUKAN";
+    let suratAkhirBadge = hasPengajuan ? "SIAP AJUKAN" : "BELUM AKTIF";
     if (step6Data?.status_penilaian_mitra === "Sudah Dinilai Mitra") suratAkhirBadge = "SUDAH DINILAI MITRA";
     else if (step6Data) suratAkhirBadge = "SUDAH DIAJUKAN";
 
@@ -378,14 +385,14 @@ async function getMahasiswaDashboard(req, res, next) {
       tanggal_mulai_magang: tglMulai,
       tanggal_berakhir_magang: tglSelesai,
       is_submitted: isSuratAkhirSubmitted,
-      surat_terima_kasih_url: step6Data?.surat_terima_kasih_url || `https://fik.amikom.ac.id/surat/SURAT-UCAPAN-TERIMA-KASIH-${step1Data?.id_magang_fakultas || 'FIK24116666'}.pdf`,
+      surat_terima_kasih_url: step6Data?.surat_terima_kasih_url || (hasPengajuan ? `https://fik.amikom.ac.id/surat/SURAT-UCAPAN-TERIMA-KASIH-${step1Data?.id_magang_fakultas || 'FIK24116666'}.pdf` : null),
       nilai_mitra_angka: step6Data?.nilai_mitra_angka || null,
       nilai_mitra_huruf: step6Data?.nilai_mitra_huruf || null,
       catatan_mitra: step6Data?.catatan_mitra || null,
       sertifikat_magang_url: step6Data?.sertifikat_magang_url || null,
       action_button: {
         label: isSuratAkhirSubmitted ? "Surat Akhir & Terima Kasih Telah Diajukan" : "+ Kirim Pengajuan Surat Akhir & Ucapan Terima Kasih",
-        is_enabled: !isSuratAkhirSubmitted,
+        is_enabled: !isSuratAkhirSubmitted && hasPengajuan,
       },
     };
 
@@ -393,6 +400,7 @@ async function getMahasiswaDashboard(req, res, next) {
       status: 200,
       message: "Data Dashboard Mahasiswa berhasil diambil",
       data: {
+        has_pengajuan: hasPengajuan,
         mahasiswa: {
           nim: mhs.nim,
           nama: mhs.nama,
