@@ -412,10 +412,14 @@ router.get("/mahasiswa/:nim", authenticateToken, requireRole(["DPL", "ADMIN_PROD
 
     // Resolve per-student catalog data
     let studentCatalog = DYNAMIC_STUDENT_CATALOG.get(nimParam);
+    
+    // Check shared memory store fallback if not in DYNAMIC_STUDENT_CATALOG
+    const memKonv = (memoryKonversiStore || []).find((k) => k.nim === nimParam);
+
     if (!studentCatalog) {
       studentCatalog = {
         nim: nimParam,
-        nama: mProfile?.nama || `Mahasiswa (${nimParam})`,
+        nama: mProfile?.nama || (nimParam === "21.11.4001" ? "Budi Santoso" : `Mahasiswa (${nimParam})`),
         email: mProfile?.email || `${nimParam}@students.amikom.ac.id`,
         prodi: mProfile?.prodi || "Informatika",
         angkatan: mProfile?.angkatan || "2024",
@@ -431,8 +435,21 @@ router.get("/mahasiswa/:nim", authenticateToken, requireRole(["DPL", "ADMIN_PROD
           supervisor_mitra: "Supervisor Industri",
           email_supervisor_mitra: "supervisor@mitra.com",
         },
-        status_konversi: "Menunggu Review DPL",
-        courses: [
+        status_konversi: memKonv?.status_konversi || "Menunggu Review DPL",
+        courses: memKonv?.items && memKonv.items.length > 0 ? memKonv.items.map((it, idx) => ({
+          id_item: it.id_item || (601 + idx),
+          id_item_konversi: it.id_item_konversi || it.id_item || (601 + idx),
+          kode_mk: it.kode_mk,
+          nama_mk: it.nama_mk,
+          sks: it.sks || 4,
+          cpmk: it.cpmk || "CPMK-Mahasiswa mampu merancang web app responsif",
+          objective: it.objective || "Merancang & mendeploy dashboard React.js responsif.",
+          durasi: "6 Bulan",
+          status_step: it.status_item || it.status_step || "Menunggu Review DPL",
+          nilai_angka: it.nilai_angka || null,
+          nilai_huruf: it.nilai_huruf || null,
+          catatan_dosen: it.catatan_dosen || null,
+        })) : [
           { id_item: 601, id_item_konversi: 601, kode_mk: "ST084", nama_mk: "Pemrograman Web", sks: 4, cpmk: "CPMK16-Mahasiswa mampu merancang web app responsif", objective: "Merancang & mendeploy dashboard React.js responsif.", durasi: "6 Bulan", status_step: "Menunggu Review DPL", nilai_angka: null, nilai_huruf: null, catatan_dosen: null },
           { id_item: 602, id_item_konversi: 602, kode_mk: "ST116", nama_mk: "Pemrograman Basis Data", sks: 4, cpmk: "CPMK15-Mahasiswa mampu mengelola database relasional", objective: "Mengoptimalkan query PostgreSQL & RLS Policy.", durasi: "6 Bulan", status_step: "Menunggu Review DPL", nilai_angka: null, nilai_huruf: null, catatan_dosen: null },
           { id_item: 603, id_item_konversi: 603, kode_mk: "ST091", nama_mk: "Analisis dan Desain Sistem Informasi", sks: 4, cpmk: "CPMK11-Mahasiswa mampu merancang diagram UML", objective: "Menyusun dokumentasi arsitektur sistem & Sequence Diagram.", durasi: "6 Bulan", status_step: "Menunggu Review DPL", nilai_angka: null, nilai_huruf: null, catatan_dosen: null },
@@ -443,7 +460,7 @@ router.get("/mahasiswa/:nim", authenticateToken, requireRole(["DPL", "ADMIN_PROD
       DYNAMIC_STUDENT_CATALOG.set(nimParam, studentCatalog);
     }
 
-    // Merge DB conversion items if present
+    // Merge DB conversion items if present in Supabase
     if (dbItemDetails && dbItemDetails.length > 0) {
       studentCatalog.courses = dbItemDetails.map((item) => ({
         id_item: item.id_item,
@@ -668,6 +685,46 @@ const handleDosenKonversiReview = async (req, res, next) => {
       const statuses = studentCatalog.courses.map((c) => c.status_step);
       if (statuses.some((s) => s.includes("Revisi"))) studentCatalog.status_konversi = "Revisi DPL";
       else if (statuses.every((s) => s.includes("Disetujui") || s.includes("ACC"))) studentCatalog.status_konversi = "Disetujui DPL";
+
+      // Also sync to shared memoryKonversiStore for app-wide consistency
+      let sharedMem = (memoryKonversiStore || []).find((k) => k.nim === targetNim);
+      if (!sharedMem) {
+        sharedMem = {
+          id_konversi: Date.now(),
+          nim: targetNim,
+          mode_input: "AI_RECOMMENDATION",
+          total_sks: 20,
+          status_konversi: studentCatalog.status_konversi,
+          catatan_dosen: finalNote,
+          items: studentCatalog.courses.map((c) => ({
+            kode_mk: c.kode_mk,
+            nama_mk: c.nama_mk,
+            sks: c.sks,
+            cpmk: c.cpmk,
+            objective: c.objective,
+            status_item: c.status_step,
+            catatan_dosen: c.catatan_dosen,
+            nilai_angka: c.nilai_angka,
+            nilai_huruf: c.nilai_huruf,
+          })),
+          created_at: new Date().toISOString(),
+        };
+        memoryKonversiStore.push(sharedMem);
+      } else {
+        sharedMem.status_konversi = studentCatalog.status_konversi;
+        sharedMem.catatan_dosen = finalNote;
+        sharedMem.items = studentCatalog.courses.map((c) => ({
+          kode_mk: c.kode_mk,
+          nama_mk: c.nama_mk,
+          sks: c.sks,
+          cpmk: c.cpmk,
+          objective: c.objective,
+          status_item: c.status_step,
+          catatan_dosen: c.catatan_dosen,
+          nilai_angka: c.nilai_angka,
+          nilai_huruf: c.nilai_huruf,
+        }));
+      }
     }
 
     res.json({
