@@ -397,6 +397,60 @@ router.put("/dosen/:nidn", async (req, res, next) => {
   }
 });
 
+// POST /api/v1/admin/plotting-dpl - Penetapan DPL untuk Mahasiswa oleh Kaprodi
+router.post(["/plotting-dpl", "/assign-dpl"], async (req, res, next) => {
+  try {
+    validateRequired(req.body, ["nim", "nidn_dpl"]);
+
+    const nim = req.body.nim.trim();
+    const nidn_dpl = req.body.nidn_dpl.trim();
+    const sk_dpl_url = req.body.sk_dpl_url || `https://fik.amikom.ac.id/sk-dpl/SK-DPL-${nim}.pdf`;
+
+    // Fetch DPL details
+    const { data: dplData } = await supabase.from("dosen_pembimbing").select("nama").eq("nidn", nidn_dpl).maybeSingle();
+    const nama_dpl = dplData?.nama || "Dr. Indah Susanti, M.Kom";
+
+    const payload = {
+      nim,
+      nidn_dpl,
+      nama_dpl,
+      sk_dpl_url,
+      status_pengajuan: "Disetujui",
+      updated_at: new Date().toISOString(),
+    };
+
+    // Upsert into pengajuan_dpl table
+    const { data: dbInserted } = await supabase
+      .from("pengajuan_dpl")
+      .upsert(payload, { onConflict: "nim" })
+      .select()
+      .maybeSingle();
+
+    // Also sync with shared memory store
+    const { memoryDplStore } = require("../utils/sharedStore");
+    const existingIndex = memoryDplStore.findIndex((d) => d.nim === nim);
+    if (existingIndex >= 0) {
+      memoryDplStore[existingIndex] = { ...memoryDplStore[existingIndex], ...payload };
+    } else {
+      memoryDplStore.push({
+        id_pengajuan_dpl: Date.now(),
+        nim,
+        sks_ditempuh: 110,
+        ...payload,
+        created_at: new Date().toISOString(),
+      });
+    }
+
+    res.status(200).json({
+      status: 200,
+      message: `Mahasiswa (${nim}) berhasil di-plotting ke DPL ${nama_dpl} (NIDN: ${nidn_dpl})`,
+      data: dbInserted || payload,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
 // ----------------------------------------------------------------------
 // 4. MANAGEMENT MITRA INDUSTRI
 // ----------------------------------------------------------------------
@@ -501,6 +555,37 @@ const handleCreateMitra = async (req, res, next) => {
 
 router.post("/create-mitra", handleCreateMitra);
 router.post("/mitra", handleCreateMitra);
+
+// PUT /api/v1/admin/mitra/:id - Update Profil / Status Mitra Industri
+router.put("/mitra/:id", async (req, res, next) => {
+  try {
+    const idParam = req.params.id;
+    const { nama_perusahaan, nama_supervisor, email_supervisor, bidang_usaha, kategori_industri } = req.body;
+
+    const updatePayload = {};
+    if (nama_perusahaan) updatePayload.nama_perusahaan = nama_perusahaan.trim();
+    if (nama_supervisor) updatePayload.nama_supervisor = nama_supervisor.trim();
+    if (email_supervisor) updatePayload.email_supervisor = email_supervisor.trim().toLowerCase();
+    if (bidang_usaha) updatePayload.bidang_usaha = bidang_usaha.trim();
+    if (kategori_industri) updatePayload.kategori_industri = kategori_industri.trim();
+    updatePayload.updated_at = new Date().toISOString();
+
+    const { data: updatedMitra } = await supabase
+      .from("mitra_industri")
+      .update(updatePayload)
+      .eq("id_mitra", idParam)
+      .select()
+      .maybeSingle();
+
+    res.json({
+      status: 200,
+      message: `Data Mitra Industri (ID: ${idParam}) berhasil diperbarui oleh Admin Kaprodi`,
+      data: updatedMitra || { id_mitra: idParam, ...updatePayload },
+    });
+  } catch (err) {
+    next(err);
+  }
+});
 
 // ----------------------------------------------------------------------
 // 5. MASTER DATA SETTING MATA KULIAH & CPMK (PRODI INFORMATIKA)
