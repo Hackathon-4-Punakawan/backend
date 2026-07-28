@@ -167,6 +167,7 @@ const memorySuratAkhirStore = [
   }
 ];
 
+const memoryMitraLogbookStore = [];
 const memorySemesterStore = new Set();
 
 module.exports = {
@@ -176,5 +177,6 @@ module.exports = {
   memoryDplStore,
   memoryKonversiStore,
   memorySuratAkhirStore,
+  memoryMitraLogbookStore,
   memorySemesterStore,
 };
