@@ -80,12 +80,12 @@ router.get("/dashboard-stats", async (req, res, next) => {
     const { data: dbStep4 } = await supabase.from("pengajuan_dpl").select("id_pengajuan_dpl");
     const { data: dbStepAkhir } = await supabase.from("surat_akhir_magang").select("id_surat_akhir");
 
-    const totalStudents = dbStudents?.length || 10;
-    const totalDpl = dbDpl?.length || 5;
-    const totalMitra = dbMitra?.length || 5;
+    const totalStudents = dbStudents ? dbStudents.length : 0;
+    const totalDpl = dbDpl ? dbDpl.length : 0;
+    const totalMitra = dbMitra ? dbMitra.length : 0;
 
     let totalMk = dbMK?.length || memoryMataKuliahCatalog.length;
-    let totalSksCatalog = dbMK ? dbMK.reduce((sum, item) => sum + (item.sks || 0), 0) : memoryMataKuliahCatalog.reduce((sum, item) => sum + item.sks, 0);
+    let totalSksCatalog = dbMK && dbMK.length > 0 ? dbMK.reduce((sum, item) => sum + (item.sks || 0), 0) : memoryMataKuliahCatalog.reduce((sum, item) => sum + item.sks, 0);
 
     // Status Konversi Breakdown
     let totalMenungguReview = 0;
@@ -94,20 +94,12 @@ router.get("/dashboard-stats", async (req, res, next) => {
     let totalSelesai = 0;
 
     const konversiList = dbKonversi || [];
-    if (konversiList.length === 0) {
-      // Default baseline stats from seed data
-      totalMenungguReview = 3;
-      totalDisetujuiDpl = 5;
-      totalRevisiDpl = 2;
-      totalSelesai = 1;
-    } else {
-      for (const k of konversiList) {
-        const st = (k.status_review_dpl || "").toLowerCase();
-        if (st.includes("disetujui")) totalDisetujuiDpl++;
-        else if (st.includes("revisi")) totalRevisiDpl++;
-        else if (st.includes("selesai")) totalSelesai++;
-        else totalMenungguReview++;
-      }
+    for (const k of konversiList) {
+      const st = (k.status_review_dpl || "").toLowerCase();
+      if (st.includes("disetujui")) totalDisetujuiDpl++;
+      else if (st.includes("revisi")) totalRevisiDpl++;
+      else if (st.includes("selesai")) totalSelesai++;
+      else totalMenungguReview++;
     }
 
     res.json({
@@ -200,19 +192,7 @@ router.get("/mahasiswa", async (req, res, next) => {
       '21.11.4011': { instansi: 'PT Xendit Finance Indonesia', dpl: 'Widodo, M.Kom', sks: 20, status: 'Disetujui DPL' }
     };
 
-    const rawStudents = (dbStudents && dbStudents.length > 0) ? dbStudents : [
-      { nim: '21.11.4001', nama: 'Budi Santoso', prodi: 'S1 Informatika', email: 'budi.santoso@students.amikom.ac.id' },
-      { nim: '21.11.4002', nama: 'Fathur Rahman', prodi: 'S1 Informatika', email: 'fathur.rahman@students.amikom.ac.id' },
-      { nim: '21.11.4003', nama: 'Ramadhan Kurnia', prodi: 'S1 Informatika', email: 'ramadhan.k@students.amikom.ac.id' },
-      { nim: '21.11.4004', nama: 'Anisa Rahmawati', prodi: 'S1 Informatika', email: 'anisa.rahmawati@students.amikom.ac.id' },
-      { nim: '21.11.4005', nama: 'Daffa Rizky Pratama', prodi: 'S1 Informatika', email: 'daffa.rizky@students.amikom.ac.id' },
-      { nim: '21.11.4006', nama: 'Siti Nurhaliza', prodi: 'S1 Informatika', email: 'siti.nurhaliza@students.amikom.ac.id' },
-      { nim: '21.11.4007', nama: 'Ahmad Fauzi', prodi: 'S1 Informatika', email: 'ahmad.fauzi@students.amikom.ac.id' },
-      { nim: '21.11.4008', nama: 'Dewi Lestari', prodi: 'S1 Informatika', email: 'dewi.lestari@students.amikom.ac.id' },
-      { nim: '21.11.4009', nama: 'Reza Rahadian', prodi: 'S1 Informatika', email: 'reza.rahadian@students.amikom.ac.id' },
-      { nim: '21.11.4010', nama: 'Nadia Safitri', prodi: 'S1 Informatika', email: 'nadia.safitri@students.amikom.ac.id' },
-      { nim: '21.11.4011', nama: 'Dimas Anggara', prodi: 'S1 Informatika', email: 'dimas.anggara@students.amikom.ac.id' }
-    ];
+    const rawStudents = dbStudents || [];
 
     const resultList = [];
 
