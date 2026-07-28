@@ -13,6 +13,7 @@ async function ensureDemoAccounts() {
     { email: "indah.susanti@amikom.ac.id", role: "DPL", password_hash: adminHash, name: "Dr. Indah Susanti, M.Kom" },
     { email: "rian.hidayat@goto.com", role: "MITRA", password_hash: adminHash, name: "Rian Hidayat (GoTo)" },
     { email: "fathur.6666@students.amikom.ac.id", role: "MAHASISWA", password_hash: defaultHash, name: "Fathur Rahman" },
+    { email: "ahmad.fauzi@students.amikom.ac.id", role: "MAHASISWA", password_hash: defaultHash, name: "Ahmad Fauzi" },
     { email: "rebelzi8@gmail.com", role: "MAHASISWA", password_hash: defaultHash, name: "Daus sedap" }
   ];
 

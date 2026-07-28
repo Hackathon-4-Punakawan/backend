@@ -150,7 +150,7 @@ async function seedDemoDataVariatif() {
     },
     {
       nim: "24.11.7777",
-      nama: "Ahmad Fauzi (Step 4 Selesai)",
+      nama: "Ahmad Fauzi",
       email: "ahmad.fauzi@students.amikom.ac.id",
       instansi: "PT GoTo Gojek Tokopedia Tbk",
       id_mitra: mitra1?.id_mitra || 1,

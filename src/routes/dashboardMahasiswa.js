@@ -270,7 +270,7 @@ async function getMahasiswaDashboard(req, res, next) {
     }
 
     const hasAnyRealPengajuan = Boolean(step1Data || step2Data || step3Data || step4Data || step5Header);
-    const isDemoAccount = targetNim === "24.11.6666" || targetNim === "24.11.5556" || targetNim === "21.11.4001";
+    const isDemoAccount = targetNim === "24.11.6666" || targetNim === "24.11.5556" || targetNim === "21.11.4001" || targetNim === "24.11.7777";
     const hasPengajuan = hasAnyRealPengajuan || isDemoAccount;
 
     if (step5Items.length === 0 && hasPengajuan) {
