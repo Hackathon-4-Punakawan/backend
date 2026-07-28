@@ -89,29 +89,16 @@ const DEFAULT_COURSES = [
 
 async function getMahasiswaDashboard(req, res, next) {
   try {
-    const userId = req.user?.userId;
+    const tokenUserId = req.user?.userId;
+    const tokenEmail = req.user?.email;
+    const tokenNim = req.user?.nim;
+    const tokenNama = req.user?.nama;
     const queryNim = req.query?.nim;
 
     let mhs = null;
-    if (userId) {
-      const { data: fetchMhs } = await supabase
-        .from("mahasiswa")
-        .select("*")
-        .eq("user_id", userId)
-        .maybeSingle();
-      if (fetchMhs) mhs = fetchMhs;
-    }
 
-    if (!mhs && req.user?.email) {
-      const { data: fetchMhs } = await supabase
-        .from("mahasiswa")
-        .select("*")
-        .eq("email", req.user.email)
-        .maybeSingle();
-      if (fetchMhs) mhs = fetchMhs;
-    }
-
-    if (!mhs && queryNim) {
+    // 1. If queryNim is passed, prioritize queryNim lookup
+    if (queryNim) {
       const { data: fetchMhs } = await supabase
         .from("mahasiswa")
         .select("*")
@@ -120,19 +107,55 @@ async function getMahasiswaDashboard(req, res, next) {
       if (fetchMhs) mhs = fetchMhs;
     }
 
-    // Target NIM resolution
-    const targetNim = mhs ? mhs.nim : (queryNim || req.user?.nim || "24.11.6666");
+    // 2. Otherwise search DB for the logged in user (by user_id, email, or nim)
+    if (!mhs && tokenUserId) {
+      const { data: fetchMhs } = await supabase
+        .from("mahasiswa")
+        .select("*")
+        .eq("user_id", tokenUserId)
+        .maybeSingle();
+      if (fetchMhs) mhs = fetchMhs;
+    }
 
+    if (!mhs && tokenEmail) {
+      const { data: fetchMhs } = await supabase
+        .from("mahasiswa")
+        .select("*")
+        .eq("email", tokenEmail)
+        .maybeSingle();
+      if (fetchMhs) mhs = fetchMhs;
+    }
+
+    if (!mhs && tokenNim) {
+      const { data: fetchMhs } = await supabase
+        .from("mahasiswa")
+        .select("*")
+        .eq("nim", tokenNim)
+        .maybeSingle();
+      if (fetchMhs) mhs = fetchMhs;
+    }
+
+    // 3. Fallback: DYNAMICALLY populate from logged in JWT user payload (req.user)
     if (!mhs) {
+      const activeNim = queryNim || tokenNim || "24.11.6666";
+      const activeEmail = tokenEmail || (activeNim === "24.11.6666" ? "fathur.6666@students.amikom.ac.id" : "student@students.amikom.ac.id");
+      const activeNama = tokenNama || (activeNim === "24.11.6666" ? "Fathur Rahman" : (activeNim === "21.11.4001" ? "Budi Santoso" : "Mahasiswa Amikom"));
+
+      let angkatan = "2024";
+      const match = String(activeNim).match(/^(\d{2})/);
+      if (match) angkatan = (2000 + Number.parseInt(match[1], 10)).toString();
+
       mhs = {
-        nim: targetNim,
-        nama: targetNim === "24.11.6666" ? "Fathur Rahman" : "Budi Santoso",
+        nim: activeNim,
+        nama: activeNama,
         prodi: "Informatika",
-        angkatan: targetNim === "24.11.6666" ? "2024" : "2021",
-        email: targetNim === "24.11.6666" ? "fathur.6666@students.amikom.ac.id" : "budi.santoso@students.amikom.ac.id",
-        foto_profile: `https://ui-avatars.com/api/?name=${encodeURIComponent(targetNim === "24.11.6666" ? "Fathur Rahman" : "Budi Santoso")}&background=4f46e5&color=fff&bold=true`,
+        angkatan: angkatan,
+        email: activeEmail,
+        foto_profile: `https://ui-avatars.com/api/?name=${encodeURIComponent(activeNama)}&background=4f46e5&color=fff&bold=true`,
       };
     }
+
+    const targetNim = mhs.nim;
 
     // 1. Fetch Step 1 (Pengajuan Magang / FIK)
     let step1Data = null;
@@ -144,7 +167,7 @@ async function getMahasiswaDashboard(req, res, next) {
     if (dbStep1 && dbStep1.length > 0) step1Data = dbStep1[0];
 
     if (!step1Data) {
-      const mem1 = memoryStep1Store.find((s) => String(s.nim || "") === String(targetNim));
+      const mem1 = memoryStep1Store.find((s) => String(s.nim || "") === String(targetNim) || (mhs && String(s.email || "") === String(mhs.email)));
       if (mem1) step1Data = mem1;
     }
 
@@ -158,7 +181,7 @@ async function getMahasiswaDashboard(req, res, next) {
     if (dbStep2 && dbStep2.length > 0) step2Data = dbStep2[0];
 
     if (!step2Data) {
-      const mem2 = memoryProposalStore.find((p) => String(p.nim || "") === String(targetNim));
+      const mem2 = memoryProposalStore.find((p) => String(p.nim || "") === String(targetNim) || (mhs && String(p.nim || "") === String(mhs.nim)));
       if (mem2) step2Data = mem2;
     }
 
@@ -180,7 +203,7 @@ async function getMahasiswaDashboard(req, res, next) {
     if (dbStep3 && dbStep3.length > 0) step3Data = dbStep3[0];
 
     if (!step3Data) {
-      const mem3 = memorySuratStore.find((s) => String(s.nim || "") === String(targetNim));
+      const mem3 = memorySuratStore.find((s) => String(s.nim || "") === String(targetNim) || (mhs && String(s.email_mahasiswa || "") === String(mhs.email)));
       if (mem3) step3Data = mem3;
     }
 
@@ -194,7 +217,7 @@ async function getMahasiswaDashboard(req, res, next) {
     if (dbStep4 && dbStep4.length > 0) step4Data = dbStep4[0];
 
     if (!step4Data) {
-      const mem4 = memoryDplStore.find((d) => String(d.nim || "") === String(targetNim));
+      const mem4 = memoryDplStore.find((d) => String(d.nim || "") === String(targetNim) || (mhs && String(d.nim || "") === String(mhs.nim)));
       if (mem4) step4Data = mem4;
     }
 
@@ -237,7 +260,7 @@ async function getMahasiswaDashboard(req, res, next) {
     }
 
     if (!step5Header && step5Items.length === 0) {
-      const mem5 = memoryKonversiStore.find((k) => String(k.nim || "") === String(targetNim));
+      const mem5 = memoryKonversiStore.find((k) => String(k.nim || "") === String(targetNim) || (mhs && String(k.nim || "") === String(mhs.nim)));
       if (mem5) {
         step5Header = mem5;
         step5Items = mem5.items || [];
@@ -259,7 +282,7 @@ async function getMahasiswaDashboard(req, res, next) {
     if (dbStep6 && dbStep6.length > 0) step6Data = dbStep6[0];
 
     if (!step6Data) {
-      const mem6 = memorySuratAkhirStore.find((s) => String(s.nim || "") === String(targetNim));
+      const mem6 = memorySuratAkhirStore.find((s) => String(s.nim || "") === String(targetNim) || (mhs && String(s.email || "") === String(mhs.email)));
       if (mem6) step6Data = mem6;
     }
 
