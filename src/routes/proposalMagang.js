@@ -56,6 +56,8 @@ router.get("/helper-info", authenticateToken, async (req, res, next) => {
           id_pengajuan: latestPengajuan?.id_pengajuan || null,
           nama_instansi: latestPengajuan?.nama_instansi || latestPengajuan?.posisi || "",
           alamat_instansi: latestPengajuan?.alamat_instansi || "",
+          tujuan_surat: latestPengajuan?.tujuan_surat || "",
+          nama_pic: latestPengajuan?.tujuan_surat || "",
         },
         program_diikuti_options: PROGRAM_DIIKUTI_ENUM,
       },

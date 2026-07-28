@@ -36,6 +36,7 @@ const endpointCatalog = [
 
   // AUTENTIKASI & USER MANAGEMENT
   ["Autentikasi", "POST", "/api/v1/auth/register-mahasiswa", "Registrasi Mahasiswa Mandiri", { nim: "21.11.4005", nama: "Rizky Ramadhan", email: "rizky.ramadhan@students.amikom.ac.id", password: "Password123" }],
+  ["Autentikasi", "POST", "/api/v1/auth/login", "⭐️ Login Mahasiswa Complete (NIM: 24.11.6666 / Pass: 12345678)", { identifier: "24.11.6666", password: "12345678" }],
   ["Autentikasi", "POST", "/api/v1/auth/login", "Login Mahasiswa (NIM)", { identifier: "21.11.4001", password: "Budi#1234" }],
   ["Autentikasi", "POST", "/api/v1/auth/login", "Login DPL (NIDN: 0512038901)", { identifier: "0512038901", password: "Dosen#1234" }],
   ["Autentikasi", "POST", "/api/v1/auth/login", "Login Mitra (Email)", { identifier: "rian.hidayat@goto.com", password: "Mtr#1234" }],

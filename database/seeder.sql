@@ -11,7 +11,8 @@ INSERT INTO mahasiswa (nim, nama, prodi, angkatan, email, foto_profile) VALUES
 ('21.11.4007', 'Fadhil Azhar', 'Informatika', '2021', 'fadhil.azhar@students.amikom.ac.id', 'https://ui-avatars.com/api/?name=Fadhil+Azhar&background=4f46e5&color=fff&bold=true'),
 ('21.11.4008', 'Clarissa Anindya', 'Informatika', '2021', 'clarissa.a@students.amikom.ac.id', 'https://ui-avatars.com/api/?name=Clarissa+Anindya&background=4f46e5&color=fff&bold=true'),
 ('21.11.4009', 'Muhammad Farhan', 'Informatika', '2021', 'm.farhan@students.amikom.ac.id', 'https://ui-avatars.com/api/?name=Muhammad+Farhan&background=4f46e5&color=fff&bold=true'),
-('21.11.4010', 'Stephanie Vania', 'Informatika', '2021', 'stephanie.v@students.amikom.ac.id', 'https://ui-avatars.com/api/?name=Stephanie+Vania&background=4f46e5&color=fff&bold=true')
+('21.11.4010', 'Stephanie Vania', 'Informatika', '2021', 'stephanie.v@students.amikom.ac.id', 'https://ui-avatars.com/api/?name=Stephanie+Vania&background=4f46e5&color=fff&bold=true'),
+('24.11.6666', 'Fathur Rahman', 'Informatika', '2024', 'fathur.6666@students.amikom.ac.id', 'https://ui-avatars.com/api/?name=Fathur+Rahman&background=4f46e5&color=fff&bold=true')
 ON CONFLICT (nim) DO UPDATE SET 
   nama = EXCLUDED.nama,
   email = EXCLUDED.email;

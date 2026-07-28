@@ -63,6 +63,7 @@ Seluruh akun seeder siap digunakan untuk pengujian API dan frontend.
 ### 2. Mahasiswa
 | NIM | Email Student | Password | Nama Mahasiswa | Status Konversi Baseline |
 | :--- | :--- | :--- | :--- | :--- |
+| ⭐️ `24.11.6666` | `fathur.6666@students.amikom.ac.id` | `12345678` | **Fathur Rahman** | **Selesai 5 Step + Rating Mitra (100% Complete)** |
 | `21.11.4001` | `budi.santoso@students.amikom.ac.id` | `Budi#1234` | Budi Santoso | Disetujui DPL |
 | `21.11.4002` | `siti.aminah@students.amikom.ac.id` | `Mhs#1234` | Siti Aminah | Menunggu Review DPL |
 | `21.11.4003` | `rizky.pratama@students.amikom.ac.id` | `Mhs#1234` | Rizky Pratama | Revisi DPL |
