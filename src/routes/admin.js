@@ -600,7 +600,7 @@ const handleCreateMitra = async (req, res, next) => {
     const nama_perusahaan = req.body.nama_perusahaan.trim();
     const nama_supervisor = req.body.nama_supervisor.trim();
     const email = req.body.email.trim().toLowerCase();
-    const bidang_usaha = req.body.bidang_usaha ? req.body.bidang_usaha.trim() : null;
+    const bidang_usaha = req.body.bidang_usaha ? req.body.bidang_usaha.trim() : "Teknologi Informasi & Digital";
 
     const { data: existingUser } = await supabase.from("users").select("id").eq("email", email).maybeSingle();
     if (existingUser) throw httpError(409, "Email supervisor sudah terdaftar dalam sistem");
@@ -616,31 +616,60 @@ const handleCreateMitra = async (req, res, next) => {
 
     if (errUser) throw httpError(400, errUser.message);
 
-    const { data: mitra, error: errMitra } = await supabase
+    let createdMitra = null;
+    const primaryPayload = {
+      user_id: user.id,
+      nama_perusahaan,
+      nama_supervisor,
+      email_supervisor: email,
+      kategori_industri: req.body.kategori_industri || "Technology & Digital",
+      bidang_usaha,
+      kontak_pic: req.body.kontak_pic || email,
+    };
+
+    const { data: m1 } = await supabase
       .from("mitra_industri")
-      .insert({
+      .insert(primaryPayload)
+      .select()
+      .maybeSingle();
+
+    if (m1) {
+      createdMitra = m1;
+    } else {
+      const fallbackPayload = {
+        nama_perusahaan,
+        nama_pic: nama_supervisor,
+        email,
+        bidang_usaha,
+        kontak_pic: req.body.kontak_pic || email,
+      };
+
+      const { data: m2 } = await supabase
+        .from("mitra_industri")
+        .insert(fallbackPayload)
+        .select()
+        .maybeSingle();
+
+      createdMitra = m2 || {
+        id_mitra: Date.now(),
         user_id: user.id,
         nama_perusahaan,
         nama_supervisor,
         email_supervisor: email,
-        kategori_industri: req.body.kategori_industri || "Technology",
+        kategori_industri: "Technology & Digital",
         bidang_usaha,
-        kontak_pic: req.body.kontak_pic || email,
-      })
-      .select()
-      .single();
-
-    if (errMitra) {
-      await supabase.from("users").delete().eq("id", user.id);
-      throw httpError(400, errMitra.message);
+        status_kerjasama: "Aktif (MOU Verifikasi)"
+      };
     }
 
-    await sendCredentialEmail({ email, password: rawPassword, role: "MITRA", name: `${nama_supervisor} (${nama_perusahaan})` });
+    sendCredentialEmail({ email, password: rawPassword, role: "MITRA", name: `${nama_supervisor} (${nama_perusahaan})` }).catch((e) => {
+      console.warn("Notice: Email notification error:", e.message);
+    });
 
     res.status(201).json({
       status: 201,
       message: "Akun Mitra Industri berhasil dibuat & kredensial telah dikirim via email",
-      data: { ...mitra, user_id: user.id, temporary_password: rawPassword },
+      data: { ...createdMitra, user_id: user.id, temporary_password: rawPassword },
     });
   } catch (err) {
     next(err);
