@@ -354,8 +354,11 @@ router.get("/dosen", async (req, res, next) => {
 
     const result = rawList.map((d) => {
       const dbCount = countMap.get(d.nidn);
-      const stats = dplStatsMap[d.nidn] || { kuota: 5, defaultTotal: 2, selesai: 1, review: 1 };
-      const totalBimbingan = dbCount !== undefined ? dbCount : stats.defaultTotal;
+      const isKnownSample = Boolean(dplStatsMap[d.nidn]);
+      const stats = dplStatsMap[d.nidn] || { kuota: 5, defaultTotal: 0, selesai: 0, review: 0 };
+      const totalBimbingan = dbCount !== undefined ? dbCount : (isKnownSample ? stats.defaultTotal : 0);
+      const selesai = isKnownSample ? stats.selesai : 0;
+      const review = isKnownSample ? stats.review : 0;
 
       return {
         nidn: d.nidn,
@@ -366,8 +369,8 @@ router.get("/dosen", async (req, res, next) => {
         is_active: d.is_active !== false,
         total_mahasiswa_bimbingan: totalBimbingan,
         kuota_max: stats.kuota,
-        selesai_evaluasi: stats.selesai,
-        menunggu_review: stats.review
+        selesai_evaluasi: selesai,
+        menunggu_review: review
       };
     });
 
