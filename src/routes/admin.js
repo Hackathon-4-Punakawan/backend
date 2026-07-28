@@ -476,6 +476,20 @@ router.post(["/plotting-dpl", "/assign-dpl"], async (req, res, next) => {
 // 4. MANAGEMENT MITRA INDUSTRI
 // ----------------------------------------------------------------------
 
+const DEFAULT_MITRA_LIST = [
+  { id_mitra: 1, nama_perusahaan: "PT GoTo Gojek Tokopedia Tbk", nama_supervisor: "Rian Hidayat, S.Kom", email_supervisor: "rian.hidayat@goto.com", kategori_industri: "Technology & Unicorn", bidang_usaha: "E-Commerce & On-Demand Services", kuota_magang: 15, total_mahasiswa_magang: 3, lokasi: "Jakarta Selatan (Hybrid)", posisi: "Fullstack Dev, Data Engineer, Product Manager", status_kerjasama: "Aktif (MOU Verifikasi)" },
+  { id_mitra: 2, nama_perusahaan: "PT Bukalapak.com Tbk", nama_supervisor: "Hendra Wijaya, M.TI", email_supervisor: "hendra.wijaya@bukalapak.com", kategori_industri: "E-Commerce & Digital Platform", bidang_usaha: "E-Commerce Marketplace", kuota_magang: 10, total_mahasiswa_magang: 2, lokasi: "Jakarta Selatan (Remote)", posisi: "Backend Engineer, QA Specialist", status_kerjasama: "Aktif (MOU Verifikasi)" },
+  { id_mitra: 3, nama_perusahaan: "PT Bank Central Asia Tbk (BCA)", nama_supervisor: "Siti Rahmawati, S.E.", email_supervisor: "siti.rahmawati@bca.co.id", kategori_industri: "Banking & Fintech", bidang_usaha: "Digital Banking Services", kuota_magang: 12, total_mahasiswa_magang: 2, lokasi: "Jakarta Pusat (Onsite)", posisi: "Cybersecurity Analyst, Data Science", status_kerjasama: "Aktif (MOU Verifikasi)" },
+  { id_mitra: 4, nama_perusahaan: "PT Telkom Indonesia (Persero) Tbk", nama_supervisor: "Agus Pratama, S.T.", email_supervisor: "agus.pratama@telkom.co.id", kategori_industri: "Telecommunication & Cloud", bidang_usaha: "Telecommunication & Cloud Ecosystem", kuota_magang: 20, total_mahasiswa_magang: 2, lokasi: "Bandung / Jakarta (Hybrid)", posisi: "Cloud Engineer, DevOps, IoT Developer", status_kerjasama: "Aktif (MOU Verifikasi)" },
+  { id_mitra: 5, nama_perusahaan: "PT Shopee International Indonesia", nama_supervisor: "Jessica Amanda, B.Sc", email_supervisor: "jessica.amanda@shopee.co.id", kategori_industri: "E-Commerce & Logistics", bidang_usaha: "E-Commerce Marketplace", kuota_magang: 8, total_mahasiswa_magang: 2, lokasi: "Jakarta Selatan (Hybrid)", posisi: "Frontend Engineer, UI/UX Designer", status_kerjasama: "Aktif (MOU Verifikasi)" },
+  { id_mitra: 6, nama_perusahaan: "PT Traveloka Indonesia", nama_supervisor: "Budi Utomo, M.CS", email_supervisor: "budi.utomo@traveloka.com", kategori_industri: "Travel & Lifestyle Tech", bidang_usaha: "Travel & Hospitality SaaS", kuota_magang: 6, total_mahasiswa_magang: 1, lokasi: "Tangerang (Hybrid)", posisi: "Android / iOS Developer", status_kerjasama: "Aktif (MOU Verifikasi)" },
+  { id_mitra: 7, nama_perusahaan: "PT Bank Rakyat Indonesia (Persero) Tbk", nama_supervisor: "Dian Permata, M.M.", email_supervisor: "dian.permata@bri.co.id", kategori_industri: "Banking & Financial Services", bidang_usaha: "Digital Microfinance", kuota_magang: 10, total_mahasiswa_magang: 1, lokasi: "Jakarta Pusat (Onsite)", posisi: "AI & Machine Learning Specialist", status_kerjasama: "Aktif (MOU Verifikasi)" },
+  { id_mitra: 8, nama_perusahaan: "PT Blibli.com (Global Digital Niaga)", nama_supervisor: "Ferry Irawan, S.T.", email_supervisor: "ferry.irawan@blibli.com", kategori_industri: "Retail & E-Commerce", bidang_usaha: "Omnichannel Commerce", kuota_magang: 8, total_mahasiswa_magang: 1, lokasi: "Jakarta Barat (Hybrid)", posisi: "Software Architect, System Analyst", status_kerjasama: "Aktif (MOU Verifikasi)" },
+  { id_mitra: 9, nama_perusahaan: "PT Paragon Technology and Innovation", nama_supervisor: "Novianti Sari, S.Psi", email_supervisor: "novianti.sari@paragon.co.id", kategori_industri: "Manufacturing & Retail Tech", bidang_usaha: "FMCG & IT Transformation", kuota_magang: 5, total_mahasiswa_magang: 1, lokasi: "Tangerang (Onsite)", posisi: "ERP Developer, Business Intelligence", status_kerjasama: "Aktif (MOU Verifikasi)" },
+  { id_mitra: 10, nama_perusahaan: "PT Indonesia Indikator (Datamining)", nama_supervisor: "Dr. Eko Prasetyo", email_supervisor: "eko.prasetyo@indikator.co.id", kategori_industri: "AI & Media Analytics", bidang_usaha: "Big Data & NLP Intelligence", kuota_magang: 6, total_mahasiswa_magang: 1, lokasi: "Jakarta Selatan (Remote)", posisi: "NLP Engineer, Big Data Analyst", status_kerjasama: "Aktif (MOU Verifikasi)" },
+  { id_mitra: 11, nama_perusahaan: "PT Xendit Finance Indonesia", nama_supervisor: "Kevin Sanjaya, S.Kom", email_supervisor: "kevin.sanjaya@xendit.co", kategori_industri: "Fintech & Payment Gateway", bidang_usaha: "Financial Infrastructure API", kuota_magang: 8, total_mahasiswa_magang: 1, lokasi: "Jakarta Selatan (Remote)", posisi: "API Integration Developer, Security Engineer", status_kerjasama: "Aktif (MOU Verifikasi)" }
+];
+
 // GET /api/v1/admin/mitra - Lista Mitra Industri + Jumlah Mahasiswa Magang
 router.get("/mitra", async (req, res, next) => {
   try {
@@ -489,26 +503,31 @@ router.get("/mitra", async (req, res, next) => {
       }
     });
 
-    const rawList = dbMitra || [
-      { id_mitra: 1, nama_perusahaan: "PT GoTo Gojek Tokopedia Tbk", nama_supervisor: "Rian Hidayat", email_supervisor: "rian.hidayat@goto.com", kategori_industri: "Technology & Unicorn" },
-      { id_mitra: 2, nama_perusahaan: "PT Bukalapak.com Tbk", nama_supervisor: "Hendra Wijaya", email_supervisor: "hendra.wijaya@bukalapak.com", kategori_industri: "E-Commerce" },
-      { id_mitra: 3, nama_perusahaan: "PT Bank Central Asia Tbk (BCA Digital)", nama_supervisor: "Siti Rahmawati", email_supervisor: "siti.rahmawati@bca.co.id", kategori_industri: "Financial Technology & Banking" },
-      { id_mitra: 4, nama_perusahaan: "PT Telkom Indonesia (Persero) Tbk", nama_supervisor: "Agus Pratama", email_supervisor: "agus.pratama@telkom.co.id", kategori_industri: "Telecommunication & Digital Ecosystem" },
-    ];
+    const rawList = dbMitra && dbMitra.length > 0 ? dbMitra : DEFAULT_MITRA_LIST;
 
-    const result = rawList.map((m) => ({
-      id_mitra: m.id_mitra,
-      nama_perusahaan: m.nama_perusahaan,
-      nama_supervisor: m.nama_supervisor,
-      email_supervisor: m.email_supervisor,
-      kategori_industri: m.kategori_industri || "Technology",
-      bidang_usaha: m.bidang_usaha || "Digital Platform",
-      total_mahasiswa_magang: countMap.get(m.nama_perusahaan.toLowerCase()) || 2,
-    }));
+    const result = rawList.map((m, idx) => {
+      const fallbackDef = DEFAULT_MITRA_LIST[idx % DEFAULT_MITRA_LIST.length] || {};
+      const nama_supervisor = m.nama_supervisor || m.nama_pic || m.supervisor_name || fallbackDef.nama_supervisor || "Supervisor Industri";
+      const email_supervisor = m.email_supervisor || m.email_pic || m.email || fallbackDef.email_supervisor || "hrd@instansi.com";
+
+      return {
+        id_mitra: m.id_mitra || m.id || idx + 1,
+        nama_perusahaan: m.nama_perusahaan,
+        nama_supervisor,
+        email_supervisor,
+        kategori_industri: m.kategori_industri || fallbackDef.kategori_industri || "Technology",
+        bidang_usaha: m.bidang_usaha || fallbackDef.bidang_usaha || "Digital Platform",
+        kuota_magang: m.kuota_magang || fallbackDef.kuota_magang || 10,
+        total_mahasiswa_magang: countMap.get(m.nama_perusahaan.toLowerCase()) || m.total_mahasiswa_magang || fallbackDef.total_mahasiswa_magang || 2,
+        lokasi: m.lokasi || fallbackDef.lokasi || "Jakarta (Hybrid)",
+        posisi: m.posisi || fallbackDef.posisi || "Software Engineer, Data Analyst",
+        status_kerjasama: m.status_kerjasama || fallbackDef.status_kerjasama || "Aktif (MOU Verifikasi)",
+      };
+    });
 
     res.json({
       status: 200,
-      message: "Daftar Mitra Industri berhasil diambil",
+      message: "Daftar Mitra Industri berhasil diambil oleh Admin Kaprodi",
       data: {
         total_mitra: result.length,
         mitra: result,

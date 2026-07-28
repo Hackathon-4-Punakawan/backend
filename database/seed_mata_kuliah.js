@@ -4,7 +4,7 @@ const path = require("path");
 const supabase = require("../src/config/supabase");
 
 async function seedMataKuliah() {
-  console.log("⏳ Membaca file mk (1).json dan menyelaraskan database mata_kuliah...");
+  console.log("⏳ Membaca file mk (1).json dan menyelaraskan database mata_kuliah & cpl_cpmk...");
 
   const jsonPath = path.join(__dirname, "../mk (1).json");
   if (!fs.existsSync(jsonPath)) {
@@ -35,7 +35,7 @@ async function seedMataKuliah() {
     };
   });
 
-  // Additional core subjects commonly used in tests/system if missing
+  // Additional core subjects if missing
   const defaultExtras = [
     { kode_mk: "ST084", nama_mk: "Pemrograman Web", sks: 4, semester: 6, cpmk: "1. Mahasiswa mampu merancang web app responsif.\n2. Mahasiswa mampu membangun backend REST API.", kategori: "Wajib Prodi", is_active: true },
     { kode_mk: "ST091", nama_mk: "Analisis dan Desain Sistem Informasi", sks: 4, semester: 6, cpmk: "1. Mahasiswa mampu merancang diagram UML.\n2. Mahasiswa mampu merekayasa arsitektur sistem informasi.", kategori: "Wajib Prodi", is_active: true },
@@ -68,7 +68,21 @@ async function seedMataKuliah() {
     }
   }
 
-  console.log(`✅ Berhasil menyelaraskan ${dbSuccessCount} / ${formattedItems.length} Mata Kuliah ke Supabase DB!`);
+  // Seed CPL & CPMK List
+  const cplList = [
+    { kode_cpl: "CPL-01", kategori: "Sikap & Komunikasi", nama_kompetensi: "Sikap Mental Positif & Komunikasi Industri", deskripsi: "Menerapkan sikap mental positif, integritas profesional, dan komunikasi lisan/tulisan yang efektif di lingkungan kerja.", bobot_persen: 15.0 },
+    { kode_cpl: "CPL-02", kategori: "Problem Solving & Analisis Data", nama_kompetensi: "Metode Analisis, Pengolahan Data & Pemecahan Masalah", deskripsi: "Menerapkan teknik akuisisi, pengolahan, analisis data, dan evaluasi data untuk memecahkan masalah industri secara inovatif.", bobot_persen: 20.0 },
+    { kode_cpl: "CPL-03", kategori: "Rekayasa Perangkat Lunak & Platform Digital", nama_kompetensi: "Perancangan & Pengembangan Perangkat Lunak Platform Digital", deskripsi: "Merancang, mengarahkan, dan mendeploy software pada berbagai platform digital sesuai kebutuhan industri dan masyarakat.", bobot_persen: 25.0 },
+    { kode_cpl: "CPL-04", kategori: "Jaringan Komputer & Keamanan", nama_kompetensi: "Konfigurasi Jaringan & Keamanan Sistem", deskripsi: "Mengonfigurasi sistem jaringan komputer, arsitektur internet, IoT, dan menerapkan protokol keamanan jaringan.", bobot_persen: 15.0 },
+    { kode_cpl: "CPL-05", kategori: "Manajemen IT & Kepemimpinan", nama_kompetensi: "Manajemen Strategik, Kepemimpinan & Kerjasama Tim", deskripsi: "Memimpin tim pengembang, menyampaikan gagasan kritis profesional, serta merancang inovasi bisnis digital dan e-commerce.", bobot_persen: 15.0 },
+    { kode_cpl: "CPL-06", kategori: "Produk Digital & Media Interaktif", nama_kompetensi: "Pengembangan Produk Digital, Game & Media Interaktif", deskripsi: "Menghasilkan produk ekonomi kreatif digital, game, media interaktif multimedia, dan Mixed Reality.", bobot_persen: 10.0 }
+  ];
+
+  for (const cpl of cplList) {
+    await supabase.from("cpl_cpmk").upsert(cpl, { onConflict: "kode_cpl" });
+  }
+
+  console.log(`✅ Berhasil menyelaraskan ${dbSuccessCount} / ${formattedItems.length} Mata Kuliah & 6 CPL-CPMK ke Supabase DB!`);
   return formattedItems;
 }
 
