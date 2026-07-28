@@ -3,8 +3,8 @@ const supabase = require("../src/config/supabase");
 const { seedMataKuliah } = require("./seed_mata_kuliah");
 const bcrypt = require("bcryptjs");
 
-async function resetDatabase() {
-  console.log("🧹 Memulai Pengosongan Database & Memory Stores untuk Testing Fresh State...\n");
+async function resetDatabaseClean() {
+  console.log("🧹 Memulai Pengosongan Database & Memory Stores (Fresh State Tanpa Mahasiswa Dummy)...\n");
 
   const tablesToClear = [
     "approval_tokens",
@@ -27,7 +27,6 @@ async function resetDatabase() {
     try {
       const { error } = await supabase.from(table).delete().neq("id", -1);
       if (error && !error.message.includes("does not exist") && !error.message.includes("column \"id\"")) {
-        // Fallback delete if id column does not exist
         await supabase.from(table).delete().neq("created_at", "1970-01-01T00:00:00Z");
       }
       console.log(`  ✓ Table '${table}' berhasil dikosongkan.`);
@@ -52,26 +51,29 @@ async function resetDatabase() {
   console.log("\n📚 Menyiapkan ulang Katalog Mata Kuliah & CPMK dari mk (1).json...");
   await seedMataKuliah();
 
-  // Create default accounts for testing
-  console.log("\n👤 Membuat akun default untuk testing...");
+  // Create ONLY 3 Master Accounts: Admin Prodi, DPL, Mitra
+  console.log("\n👤 Membuat 3 Akun Master (Admin Prodi, DPL, Mitra Industri)...");
 
-  const defaultPasswordHash = await bcrypt.hash("12345678", 10);
   const adminPasswordHash = await bcrypt.hash("Admin123!", 10);
 
-  // 1. Akun Admin Kaprodi
+  // 1. Akun Admin Kaprodi / Prodi
   const { data: adminUser } = await supabase.from("users").insert({
     email: "admin.fik@amikom.ac.id",
     password_hash: adminPasswordHash,
     role: "ADMIN_PRODI",
     name: "Admin Kaprodi FIK",
+    is_active: true,
   }).select().maybeSingle();
 
-  // 2. Akun DPL (Dr. Indah Susanti, M.Kom)
+  console.log("  ✓ Akun Admin Prodi created: admin.fik@amikom.ac.id / Admin123!");
+
+  // 2. Akun Dosen Pembimbing Lapangan (DPL)
   const { data: dplUser } = await supabase.from("users").insert({
     email: "indah.susanti@amikom.ac.id",
     password_hash: adminPasswordHash,
     role: "DPL",
     name: "Dr. Indah Susanti, M.Kom",
+    is_active: true,
   }).select().maybeSingle();
 
   await supabase.from("dosen_pembimbing").upsert({
@@ -83,12 +85,15 @@ async function resetDatabase() {
     user_id: dplUser?.id,
   }, { onConflict: "nidn" });
 
-  // 3. Akun Mitra Supervisor (GoTo)
+  console.log("  ✓ Akun Dosen DPL created: indah.susanti@amikom.ac.id (NIDN: 0512038901) / Admin123!");
+
+  // 3. Akun Mitra Industri / Supervisor
   const { data: mitraUser } = await supabase.from("users").insert({
     email: "rian.hidayat@goto.com",
     password_hash: adminPasswordHash,
     role: "MITRA",
     name: "Rian Hidayat (GoTo)",
+    is_active: true,
   }).select().maybeSingle();
 
   await supabase.from("mitra_industri").insert({
@@ -98,58 +103,24 @@ async function resetDatabase() {
     kategori_industri: "Technology & E-Commerce",
     bidang_usaha: "On-Demand Services & Technology",
     kuota_magang: 10,
-    kuota_terpakai: 1,
+    kuota_terpakai: 0,
     user_id: mitraUser?.id,
   });
 
-  // 4. Akun Seeder Mahasiswa NIM 24.11.6666 (Fathur Rahman)
-  const { data: mhsUser } = await supabase.from("users").insert({
-    email: "fathur.6666@students.amikom.ac.id",
-    password_hash: defaultPasswordHash,
-    role: "MAHASISWA",
-    name: "Fathur Rahman",
-  }).select().maybeSingle();
-
-  await supabase.from("mahasiswa").upsert({
-    nim: "24.11.6666",
-    nama: "Fathur Rahman",
-    email: "fathur.6666@students.amikom.ac.id",
-    prodi: "Informatika",
-    angkatan: "2024",
-    foto_profile: "https://ui-avatars.com/api/?name=Fathur+Rahman&background=4f46e5&color=fff&bold=true",
-    user_id: mhsUser?.id,
-  }, { onConflict: "nim" });
-
-  // 5. Akun Seeder Mahasiswa NIM 24.11.5556 (Daus sedap)
-  const { data: mhs2User } = await supabase.from("users").insert({
-    email: "rebelzi8@gmail.com",
-    password_hash: defaultPasswordHash,
-    role: "MAHASISWA",
-    name: "Daus sedap",
-  }).select().maybeSingle();
-
-  await supabase.from("mahasiswa").upsert({
-    nim: "24.11.5556",
-    nama: "Daus sedap",
-    email: "rebelzi8@gmail.com",
-    prodi: "Informatika",
-    angkatan: "2024",
-    foto_profile: "https://ui-avatars.com/api/?name=Daus+sedap&background=4f46e5&color=fff&bold=true",
-    user_id: mhs2User?.id,
-  }, { onConflict: "nim" });
+  console.log("  ✓ Akun Mitra Industri created: rian.hidayat@goto.com / Admin123!");
 
   console.log("\n========================================================");
-  console.log("✅ RESET DATABASE BERHASIL! DAPAT DIGUNAKAN UNTUK TESTING FRESH STATE:");
-  console.log("1. Admin Kaprodi  : admin.fik@amikom.ac.id / Admin123!");
-  console.log("2. Dosen DPL      : indah.susanti@amikom.ac.id / Admin123!");
-  console.log("3. Supervisor     : rian.hidayat@goto.com / Admin123!");
-  console.log("4. Mahasiswa #1   : NIM 24.11.6666 / Password: 12345678 (fathur.6666@students.amikom.ac.id)");
-  console.log("5. Mahasiswa #2   : NIM 24.11.5556 / Password: 12345678 (rebelzi8@gmail.com)");
+  console.log("✅ RESET DATABASE BERHASIL! DATABASE KOSONG & 3 AKUN MASTER READY:");
+  console.log("1. Admin Kaprodi / Prodi : admin.fik@amikom.ac.id / Admin123!");
+  console.log("2. Dosen Pembimbing DPL  : indah.susanti@amikom.ac.id / Admin123! (NIDN: 0512038901)");
+  console.log("3. Supervisor Mitra      : rian.hidayat@goto.com / Admin123!");
+  console.log("--------------------------------------------------------");
+  console.log("📌 Tabel Mahasiswa & Pengajuan: 100% KOSONG untuk testing pendaftaran baru!");
   console.log("========================================================\n");
 }
 
 if (require.main === module) {
-  resetDatabase()
+  resetDatabaseClean()
     .then(() => process.exit(0))
     .catch((err) => {
       console.error("❌ Reset Error:", err);
@@ -157,4 +128,4 @@ if (require.main === module) {
     });
 }
 
-module.exports = { resetDatabase };
+module.exports = { resetDatabaseClean };
