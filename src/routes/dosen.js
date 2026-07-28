@@ -244,12 +244,20 @@ router.get("/dashboard-stats", authenticateToken, requireRole(["DPL", "ADMIN_PRO
     let totalSksDikembangkan = 0;
 
     for (const student of advisees) {
-      for (const course of student.courses) {
-        const st = course.status_step || "Menunggu Review DPL";
-        if (st.includes("Revisi")) countRevisi++;
-        else if (st.includes("Disetujui") || st.includes("ACC")) countDisetujui++;
-        else countPerluReview++;
-        totalSksDikembangkan += Number(course.sks || 4);
+      const statuses = student.courses ? student.courses.map((c) => c.status_step || "Menunggu Review DPL") : [];
+      let overall = student.status_konversi || "Menunggu Review DPL";
+      if (statuses.some((s) => s.includes("Revisi"))) overall = "Revisi DPL";
+      else if (statuses.length > 0 && statuses.every((s) => s.includes("Disetujui") || s.includes("ACC"))) overall = "Disetujui DPL";
+      else overall = "Menunggu Review DPL";
+
+      if (overall.includes("Revisi")) countRevisi++;
+      else if (overall.includes("Disetujui") || overall.includes("ACC")) countDisetujui++;
+      else countPerluReview++;
+
+      if (student.courses) {
+        for (const course of student.courses) {
+          totalSksDikembangkan += Number(course.sks || 4);
+        }
       }
     }
 
