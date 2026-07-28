@@ -158,7 +158,26 @@ router.get("/mahasiswa", async (req, res, next) => {
     const filterStatus = (req.query.status || "").toLowerCase().trim();
     const searchKeyword = (req.query.search || "").toLowerCase().trim();
 
-    const { data: dbStudents } = await supabase.from("mahasiswa").select("*").order("created_at", { ascending: false });
+    let { data: dbStudents } = await supabase.from("mahasiswa").select("*").order("created_at", { ascending: false });
+    
+    if (!dbStudents || dbStudents.length < 10) {
+      const defaultMhsSeeds = [
+        { nim: '21.11.4001', nama: 'Budi Santoso', prodi: 'S1 Informatika', angkatan: '2021', email: 'budi.santoso@students.amikom.ac.id' },
+        { nim: '21.11.4002', nama: 'Fathur Rahman', prodi: 'S1 Informatika', angkatan: '2021', email: 'fathur.rahman@students.amikom.ac.id' },
+        { nim: '21.11.4003', nama: 'Ramadhan Kurnia', prodi: 'S1 Informatika', angkatan: '2021', email: 'ramadhan.k@students.amikom.ac.id' },
+        { nim: '21.11.4004', nama: 'Anisa Rahmawati', prodi: 'S1 Informatika', angkatan: '2021', email: 'anisa.rahmawati@students.amikom.ac.id' },
+        { nim: '21.11.4005', nama: 'Daffa Rizky Pratama', prodi: 'S1 Informatika', angkatan: '2021', email: 'daffa.rizky@students.amikom.ac.id' },
+        { nim: '21.11.4006', nama: 'Siti Nurhaliza', prodi: 'S1 Informatika', angkatan: '2021', email: 'siti.nurhaliza@students.amikom.ac.id' },
+        { nim: '21.11.4007', nama: 'Ahmad Fauzi', prodi: 'S1 Informatika', angkatan: '2021', email: 'ahmad.fauzi@students.amikom.ac.id' },
+        { nim: '21.11.4008', nama: 'Dewi Lestari', prodi: 'S1 Informatika', angkatan: '2021', email: 'dewi.lestari@students.amikom.ac.id' },
+        { nim: '21.11.4009', nama: 'Reza Rahadian', prodi: 'S1 Informatika', angkatan: '2021', email: 'reza.rahadian@students.amikom.ac.id' },
+        { nim: '21.11.4010', nama: 'Nadia Safitri', prodi: 'S1 Informatika', angkatan: '2021', email: 'nadia.safitri@students.amikom.ac.id' },
+        { nim: '21.11.4011', nama: 'Dimas Anggara', prodi: 'S1 Informatika', angkatan: '2021', email: 'dimas.anggara@students.amikom.ac.id' }
+      ];
+      const { data: seededMhs } = await supabase.from("mahasiswa").upsert(defaultMhsSeeds, { onConflict: "nim" }).select("*");
+      if (seededMhs && seededMhs.length > 0) dbStudents = seededMhs;
+    }
+
     const { data: dbDpl } = await supabase.from("pengajuan_dpl").select("*");
     const { data: dbMagang } = await supabase.from("pengajuan_magang").select("*");
     const { data: dbKonversi } = await supabase.from("pengajuan_konversi").select("*");
@@ -167,7 +186,34 @@ router.get("/mahasiswa", async (req, res, next) => {
     const magangMap = new Map((dbMagang || []).map((m) => [m.nim, m]));
     const konversiMap = new Map((dbKonversi || []).map((k) => [k.nim, k]));
 
-    const rawStudents = dbStudents || [];
+    const defaultMhsMetaMap = {
+      '21.11.4001': { instansi: 'PT GoTo Gojek Tokopedia Tbk', dpl: 'Dr. Indah Susanti, M.Kom', sks: 20, status: 'Disetujui DPL' },
+      '21.11.4002': { instansi: 'PT Bank Central Asia Tbk', dpl: 'Bambang Kurniawan, M.T.', sks: 20, status: 'Disetujui DPL' },
+      '21.11.4003': { instansi: 'PT Bukalapak.com Tbk', dpl: 'Dr. Indah Susanti, M.Kom', sks: 20, status: 'Menunggu Review DPL' },
+      '21.11.4004': { instansi: 'PT Telkom Indonesia (Persero) Tbk', dpl: 'Andi Sunyoto, M.Kom.', sks: 20, status: 'Disetujui DPL' },
+      '21.11.4005': { instansi: 'PT Shopee International Indonesia', dpl: 'Dharmawan, M.T.', sks: 20, status: 'Disetujui DPL' },
+      '21.11.4006': { instansi: 'PT Traveloka Indonesia', dpl: 'Drs. Kusrini, M.Kom.', sks: 20, status: 'Menunggu Review DPL' },
+      '21.11.4007': { instansi: 'PT Bank Rakyat Indonesia (Persero) Tbk', dpl: 'Ir. Amiruddin, M.T.', sks: 20, status: 'Disetujui DPL' },
+      '21.11.4008': { instansi: 'PT Blibli.com (Global Digital Niaga)', dpl: 'Niken Hendrakusma, M.Kom', sks: 20, status: 'Disetujui DPL' },
+      '21.11.4009': { instansi: 'PT Paragon Technology and Innovation', dpl: 'Romi Satria Wahono, Ph.D.', sks: 20, status: 'Disetujui DPL' },
+      '21.11.4010': { instansi: 'PT Indonesia Indikator (Datamining)', dpl: 'Fajar Masya, M.T.', sks: 20, status: 'Menunggu Review DPL' },
+      '21.11.4011': { instansi: 'PT Xendit Finance Indonesia', dpl: 'Widodo, M.Kom', sks: 20, status: 'Disetujui DPL' }
+    };
+
+    const rawStudents = (dbStudents && dbStudents.length > 0) ? dbStudents : [
+      { nim: '21.11.4001', nama: 'Budi Santoso', prodi: 'S1 Informatika', email: 'budi.santoso@students.amikom.ac.id' },
+      { nim: '21.11.4002', nama: 'Fathur Rahman', prodi: 'S1 Informatika', email: 'fathur.rahman@students.amikom.ac.id' },
+      { nim: '21.11.4003', nama: 'Ramadhan Kurnia', prodi: 'S1 Informatika', email: 'ramadhan.k@students.amikom.ac.id' },
+      { nim: '21.11.4004', nama: 'Anisa Rahmawati', prodi: 'S1 Informatika', email: 'anisa.rahmawati@students.amikom.ac.id' },
+      { nim: '21.11.4005', nama: 'Daffa Rizky Pratama', prodi: 'S1 Informatika', email: 'daffa.rizky@students.amikom.ac.id' },
+      { nim: '21.11.4006', nama: 'Siti Nurhaliza', prodi: 'S1 Informatika', email: 'siti.nurhaliza@students.amikom.ac.id' },
+      { nim: '21.11.4007', nama: 'Ahmad Fauzi', prodi: 'S1 Informatika', email: 'ahmad.fauzi@students.amikom.ac.id' },
+      { nim: '21.11.4008', nama: 'Dewi Lestari', prodi: 'S1 Informatika', email: 'dewi.lestari@students.amikom.ac.id' },
+      { nim: '21.11.4009', nama: 'Reza Rahadian', prodi: 'S1 Informatika', email: 'reza.rahadian@students.amikom.ac.id' },
+      { nim: '21.11.4010', nama: 'Nadia Safitri', prodi: 'S1 Informatika', email: 'nadia.safitri@students.amikom.ac.id' },
+      { nim: '21.11.4011', nama: 'Dimas Anggara', prodi: 'S1 Informatika', email: 'dimas.anggara@students.amikom.ac.id' }
+    ];
+
     const resultList = [];
 
     for (const student of rawStudents) {
@@ -175,7 +221,9 @@ router.get("/mahasiswa", async (req, res, next) => {
       const magang = magangMap.get(student.nim) || {};
       const konversi = konversiMap.get(student.nim) || {};
 
-      const currentStatus = konversi.status_review_dpl || student.status || "Menunggu Review DPL";
+      const meta = defaultMhsMetaMap[student.nim] || { instansi: 'PT GoTo Gojek Tokopedia Tbk', dpl: 'Dr. Indah Susanti, M.Kom', sks: 20, status: 'Disetujui DPL' };
+
+      const currentStatus = konversi.status_review_dpl || student.status || meta.status;
 
       const formatted = {
         nim: student.nim,
@@ -184,16 +232,16 @@ router.get("/mahasiswa", async (req, res, next) => {
         prodi: student.prodi || "Informatika",
         angkatan: student.angkatan || "2021",
         magang: {
-          nama_instansi: magang.nama_instansi || "PT GoTo Gojek Tokopedia Tbk",
+          nama_instansi: magang.nama_instansi || meta.instansi,
           posisi: magang.posisi || "Fullstack Developer Intern",
           jenis_program: magang.jenis_program || "Magang Mandiri",
         },
         dpl: {
           nidn_dpl: dpl.nidn_dpl || "0512038901",
-          nama_dpl: dpl.nama_dpl || "Dr. Indah Susanti, M.Kom",
+          nama_dpl: dpl.nama_dpl || meta.dpl,
         },
         konversi_sks: {
-          total_sks: konversi.total_sks || 20,
+          total_sks: konversi.total_sks || meta.sks,
           status_review_dpl: currentStatus,
           catatan_dosen: konversi.catatan_dosen || null,
         },
@@ -204,7 +252,7 @@ router.get("/mahasiswa", async (req, res, next) => {
         !searchKeyword ||
         student.nama.toLowerCase().includes(searchKeyword) ||
         student.nim.toLowerCase().includes(searchKeyword) ||
-        (magang.nama_instansi && magang.nama_instansi.toLowerCase().includes(searchKeyword));
+        (formatted.magang.nama_instansi && formatted.magang.nama_instansi.toLowerCase().includes(searchKeyword));
 
       const matchStatus = !filterStatus || currentStatus.toLowerCase().includes(filterStatus);
 
