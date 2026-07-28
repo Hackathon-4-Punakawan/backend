@@ -188,6 +188,7 @@ router.post("/login", async (req, res, next) => {
         { email: "indah.susanti@amikom.ac.id", identifier: "0512038901", role: "DPL", name: "Dr. Indah Susanti, M.Kom" },
         { email: "rian.hidayat@goto.com", role: "MITRA", name: "Rian Hidayat (GoTo)" },
         { email: "fathur.6666@students.amikom.ac.id", identifier: "24.11.6666", role: "MAHASISWA", name: "Fathur Rahman" },
+        { email: "ahmad.fauzi@students.amikom.ac.id", identifier: "24.11.7777", role: "MAHASISWA", name: "Ahmad Fauzi (Step 4 Complete)" },
         { email: "rebelzi8@gmail.com", identifier: "24.11.5556", role: "MAHASISWA", name: "Daus sedap" },
       ];
 

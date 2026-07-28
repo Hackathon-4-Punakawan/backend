@@ -149,6 +149,20 @@ async function seedDemoDataVariatif() {
       logbooksCount: 5
     },
     {
+      nim: "24.11.7777",
+      nama: "Ahmad Fauzi (Step 4 Selesai)",
+      email: "ahmad.fauzi@students.amikom.ac.id",
+      instansi: "PT GoTo Gojek Tokopedia Tbk",
+      id_mitra: mitra1?.id_mitra || 1,
+      posisi: "Cloud Architecture & Backend Developer Intern",
+      dpl: dpl1,
+      statusStep1: "Ditetapkan",
+      idMagang: "FIK24117777",
+      statusKonversi: "Belum Mengajukan",
+      totalSks: 0,
+      logbooksCount: 2
+    },
+    {
       nim: "24.11.5556",
       nama: "Daus Sedap",
       email: "rebelzi8@gmail.com",
@@ -390,10 +404,13 @@ async function seedDemoDataVariatif() {
   console.log("4. MAHASISWA #1 (Fathur Rahman - Complete 20 SKS & Surat Akhir) :");
   console.log("   • NIM / Email : 24.11.6666 / fathur.6666@students.amikom.ac.id");
   console.log("   • Password    : 12345678\n");
-  console.log("5. MAHASISWA #2 (Daus Sedap - AI Research Intern Google, In Progress) :");
+  console.log("5. MAHASISWA #2 (Ahmad Fauzi - SELESAI STEP 1 s/d STEP 4 / SIAP STEP 5 KONVERSI SKS) :");
+  console.log("   • NIM / Email : 24.11.7777 / ahmad.fauzi@students.amikom.ac.id");
+  console.log("   • Password    : 12345678\n");
+  console.log("6. MAHASISWA #3 (Daus Sedap - AI Research Intern Google, In Progress) :");
   console.log("   • NIM / Email : 24.11.5556 / rebelzi8@gmail.com");
   console.log("   • Password    : 12345678\n");
-  console.log("6. MAHASISWA #3 (Budi Santoso - Fresh / Pending DPL Plotting) :");
+  console.log("7. MAHASISWA #4 (Budi Santoso - Fresh / Pending DPL Plotting) :");
   console.log("   • NIM / Email : 21.11.4001 / budi.santoso@students.amikom.ac.id");
   console.log("   • Password    : 12345678");
   console.log("=======================================================================\n");
