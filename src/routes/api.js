@@ -9,7 +9,7 @@ const resources = [
   { path: "dosen-pembimbing", table: "dosen_pembimbing", id: "nidn", fields: ["nidn", "nama", "email", "foto_profile", "is_active"], required: ["nidn", "nama", "email"] },
   { path: "mitra-industri", table: "mitra_industri", id: "id_mitra", fields: ["nama_perusahaan", "kategori_industri", "bidang_usaha", "kontak_pic"], required: ["nama_perusahaan"] },
   { path: "admin-kaprodi", table: "admin_kaprodi", id: "id_admin", fields: ["nama", "jabatan", "email"], required: ["nama", "jabatan", "email"] },
-  { path: "mata-kuliah", table: "mata_kuliah", id: "kode_mk", fields: ["kode_mk", "nama_mk", "sks", "semester"], required: ["kode_mk", "nama_mk", "sks"] },
+  { path: "mata-kuliah", table: "mata_kuliah", id: "kode_mk", fields: ["kode_mk", "nama_mk", "sks", "semester", "cpmk", "kategori", "deskripsi"], required: ["kode_mk", "nama_mk", "sks"] },
   { path: "cpl-cpmk", table: "cpl_cpmk", id: "id_cpl", fields: ["kode_cpl", "kategori", "nama_kompetensi", "deskripsi", "bobot_persen"], required: ["kode_cpl", "kategori", "nama_kompetensi"] },
   { path: "pemetaan-cpl-mk", table: "pemetaan_cpl_mk", id: "id_pemetaan", fields: ["kode_mk", "id_cpl"], required: ["kode_mk", "id_cpl"] },
   { path: "pengajuan-magang", table: "pengajuan_magang", id: "id_pengajuan", fields: ["nim", "id_mitra", "nidn", "id_admin", "nama_instansi", "alamat_instansi", "tujuan_surat", "semester", "tahun_akademik", "jenis_surat_fakultas", "nama_supervisor_mitra", "email_supervisor_mitra", "jenis_program", "posisi", "durasi_bulan", "tanggal_mulai", "tanggal_selesai", "file_proposal_magang", "file_bukti_diterima", "status_pengajuan", "status_program"], required: ["nim", "jenis_program", "posisi"] },
@@ -81,8 +81,21 @@ for (const resource of resources) {
 
       if (error) throw httpError(400, error.message);
 
+      let formattedData = data || [];
+      if (resource.path === "mata-kuliah") {
+        formattedData = formattedData.map((m) => ({
+          kode_mk: m.kode_mk,
+          nama_mk: m.nama_mk,
+          sks: m.sks || 3,
+          semester: m.semester || 5,
+          cpmk: m.cpmk || `CPMK-${m.kode_mk}: Capaian Pembelajaran Mata Kuliah ${m.nama_mk}`,
+          kategori: m.kategori || "Wajib Prodi",
+          deskripsi: m.deskripsi || `Mata kuliah ${m.nama_mk} (${m.sks} SKS, Semester ${m.semester})`
+        }));
+      }
+
       res.json({
-        data: data || [],
+        data: formattedData,
         meta: { page, limit, total: count || 0 },
       });
     } catch (err) {

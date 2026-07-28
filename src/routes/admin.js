@@ -1153,8 +1153,8 @@ router.post(["/import/mata-kuliah", "/import-mata-kuliah"], async (req, res, nex
         is_active: true,
       };
 
-      // Try insert to DB
-      const { data: dbItem } = await supabase.from("mata_kuliah").insert(payload).select().maybeSingle();
+      // Try upsert to DB
+      const { data: dbItem } = await supabase.from("mata_kuliah").upsert(payload, { onConflict: "kode_mk" }).select().maybeSingle();
       
       memoryMataKuliahCatalog.push({ id_mk: Date.now() + Math.floor(Math.random() * 1000), ...payload });
       insertedList.push(dbItem || payload);
