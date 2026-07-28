@@ -39,6 +39,8 @@ const endpointCatalog = [
   ["Dashboard Mahasiswa", "GET", "/api/v1/mahasiswa/dashboard", "2. Full Dashboard Data (Hero Card, DPL, Surat Akhir, Progress & Table MK)", {}],
   ["Dashboard Mahasiswa", "GET", "/api/v1/mahasiswa/dashboard?nim=24.11.6666", "3. Full Dashboard Data (NIM 24.11.6666 - Fathur Rahman)", {}],
   ["Dashboard Mahasiswa", "GET", "/api/v1/mahasiswa/dashboard?nim=21.11.4001", "4. Full Dashboard Data (NIM 21.11.4001 - Budi Santoso)", {}],
+  ["Dashboard Mahasiswa", "GET", "/api/v1/mahasiswa/riwayat-semester", "5. Riwayat Magang per Semester & Berkas Dokumen ACC (User Logged-In)", {}],
+  ["Dashboard Mahasiswa", "GET", "/api/v1/mahasiswa/riwayat-semester?nim=24.11.6666", "6. Riwayat Magang per Semester & Berkas Dokumen ACC (NIM 24.11.6666)", {}],
 
   // AUTENTIKASI & USER MANAGEMENT
   ["Autentikasi", "POST", "/api/v1/auth/register-mahasiswa", "Registrasi Mahasiswa Mandiri", { nim: "21.11.4005", nama: "Rizky Ramadhan", email: "rizky.ramadhan@students.amikom.ac.id", password: "Password123" }],

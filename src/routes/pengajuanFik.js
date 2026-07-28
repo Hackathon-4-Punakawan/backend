@@ -736,4 +736,14 @@ router.get("/history", authenticateToken, (req, res, next) => {
   router.handle(req, res, next);
 });
 
+router.get("/riwayat-semester", authenticateToken, (req, res, next) => {
+  const { getMahasiswaRiwayatSemester } = require("./dashboardMahasiswa");
+  return getMahasiswaRiwayatSemester(req, res, next);
+});
+
+router.get("/dokumen-acc", authenticateToken, (req, res, next) => {
+  const { getMahasiswaRiwayatSemester } = require("./dashboardMahasiswa");
+  return getMahasiswaRiwayatSemester(req, res, next);
+});
+
 module.exports = router;

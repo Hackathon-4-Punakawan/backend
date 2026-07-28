@@ -9,6 +9,8 @@ Dokumen ini berisi panduan lengkap integrasi dan spesifikasi REST API untuk **Da
 ```http
 GET /api/v1/mahasiswa/dashboard
 GET /api/v1/dashboard/mahasiswa
+GET /api/v1/mahasiswa/riwayat-semester
+GET /api/v1/pengajuan-fik/riwayat-semester
 ```
 
 - **Authentication Required**: `Bearer <JWT_TOKEN>` (Header `Authorization`) atau opsional query parameter `?nim=24.11.6666` untuk kemudahan testing.

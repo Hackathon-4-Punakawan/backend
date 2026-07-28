@@ -87,74 +87,76 @@ const DEFAULT_COURSES = [
   },
 ];
 
+async function resolveMahasiswaProfile(req) {
+  const tokenUserId = req.user?.userId;
+  const tokenEmail = req.user?.email;
+  const tokenNim = req.user?.nim;
+  const tokenNama = req.user?.nama;
+  const queryNim = req.query?.nim;
+
+  let mhs = null;
+
+  if (queryNim) {
+    const { data: fetchMhs } = await supabase
+      .from("mahasiswa")
+      .select("*")
+      .eq("nim", queryNim)
+      .maybeSingle();
+    if (fetchMhs) mhs = fetchMhs;
+  }
+
+  if (!mhs && tokenUserId) {
+    const { data: fetchMhs } = await supabase
+      .from("mahasiswa")
+      .select("*")
+      .eq("user_id", tokenUserId)
+      .maybeSingle();
+    if (fetchMhs) mhs = fetchMhs;
+  }
+
+  if (!mhs && tokenEmail) {
+    const { data: fetchMhs } = await supabase
+      .from("mahasiswa")
+      .select("*")
+      .eq("email", tokenEmail)
+      .maybeSingle();
+    if (fetchMhs) mhs = fetchMhs;
+  }
+
+  if (!mhs && tokenNim) {
+    const { data: fetchMhs } = await supabase
+      .from("mahasiswa")
+      .select("*")
+      .eq("nim", tokenNim)
+      .maybeSingle();
+    if (fetchMhs) mhs = fetchMhs;
+  }
+
+  if (!mhs) {
+    const activeNim = queryNim || tokenNim || "24.11.6666";
+    const activeEmail = tokenEmail || (activeNim === "24.11.6666" ? "fathur.6666@students.amikom.ac.id" : "student@students.amikom.ac.id");
+    const activeNama = tokenNama || (activeNim === "24.11.6666" ? "Fathur Rahman" : (activeNim === "21.11.4001" ? "Budi Santoso" : "Mahasiswa Amikom"));
+
+    let angkatan = "2024";
+    const match = String(activeNim).match(/^(\d{2})/);
+    if (match) angkatan = (2000 + Number.parseInt(match[1], 10)).toString();
+
+    mhs = {
+      nim: activeNim,
+      nama: activeNama,
+      prodi: "Informatika",
+      angkatan: angkatan,
+      email: activeEmail,
+      foto_profile: `https://ui-avatars.com/api/?name=${encodeURIComponent(activeNama)}&background=4f46e5&color=fff&bold=true`,
+    };
+  }
+
+  return mhs;
+}
+
 async function getMahasiswaDashboard(req, res, next) {
   try {
-    const tokenUserId = req.user?.userId;
-    const tokenEmail = req.user?.email;
-    const tokenNim = req.user?.nim;
-    const tokenNama = req.user?.nama;
-    const queryNim = req.query?.nim;
-
-    let mhs = null;
-
-    // 1. If queryNim is passed, prioritize queryNim lookup
-    if (queryNim) {
-      const { data: fetchMhs } = await supabase
-        .from("mahasiswa")
-        .select("*")
-        .eq("nim", queryNim)
-        .maybeSingle();
-      if (fetchMhs) mhs = fetchMhs;
-    }
-
-    // 2. Otherwise search DB for the logged in user (by user_id, email, or nim)
-    if (!mhs && tokenUserId) {
-      const { data: fetchMhs } = await supabase
-        .from("mahasiswa")
-        .select("*")
-        .eq("user_id", tokenUserId)
-        .maybeSingle();
-      if (fetchMhs) mhs = fetchMhs;
-    }
-
-    if (!mhs && tokenEmail) {
-      const { data: fetchMhs } = await supabase
-        .from("mahasiswa")
-        .select("*")
-        .eq("email", tokenEmail)
-        .maybeSingle();
-      if (fetchMhs) mhs = fetchMhs;
-    }
-
-    if (!mhs && tokenNim) {
-      const { data: fetchMhs } = await supabase
-        .from("mahasiswa")
-        .select("*")
-        .eq("nim", tokenNim)
-        .maybeSingle();
-      if (fetchMhs) mhs = fetchMhs;
-    }
-
-    // 3. Fallback: DYNAMICALLY populate from logged in JWT user payload (req.user)
-    if (!mhs) {
-      const activeNim = queryNim || tokenNim || "24.11.6666";
-      const activeEmail = tokenEmail || (activeNim === "24.11.6666" ? "fathur.6666@students.amikom.ac.id" : "student@students.amikom.ac.id");
-      const activeNama = tokenNama || (activeNim === "24.11.6666" ? "Fathur Rahman" : (activeNim === "21.11.4001" ? "Budi Santoso" : "Mahasiswa Amikom"));
-
-      let angkatan = "2024";
-      const match = String(activeNim).match(/^(\d{2})/);
-      if (match) angkatan = (2000 + Number.parseInt(match[1], 10)).toString();
-
-      mhs = {
-        nim: activeNim,
-        nama: activeNama,
-        prodi: "Informatika",
-        angkatan: angkatan,
-        email: activeEmail,
-        foto_profile: `https://ui-avatars.com/api/?name=${encodeURIComponent(activeNama)}&background=4f46e5&color=fff&bold=true`,
-      };
-    }
-
+    const mhs = await resolveMahasiswaProfile(req);
     const targetNim = mhs.nim;
 
     // 1. Fetch Step 1 (Pengajuan Magang / FIK)
@@ -267,7 +269,6 @@ async function getMahasiswaDashboard(req, res, next) {
       }
     }
 
-    // Fallback: If no custom items exist yet for this student, populate with default 5 Informatika conversion courses
     if (step5Items.length === 0) {
       step5Items = DEFAULT_COURSES;
     }
@@ -438,10 +439,288 @@ async function getMahasiswaDashboard(req, res, next) {
   }
 }
 
+// ----------------------------------------------------------------------
+// NEW ENDPOINT: GET RIWAYAT MAGANG MAHASISWA PER SEMESTER & BERKAS DOKUMEN ACC
+// ----------------------------------------------------------------------
+async function getMahasiswaRiwayatSemester(req, res, next) {
+  try {
+    const mhs = await resolveMahasiswaProfile(req);
+    const targetNim = mhs.nim;
+
+    // Fetch Step 1
+    const { data: dbStep1 } = await supabase
+      .from("pengajuan_magang")
+      .select("*")
+      .eq("nim", targetNim)
+      .order("created_at", { ascending: false });
+    const step1List = (dbStep1 && dbStep1.length > 0)
+      ? dbStep1
+      : memoryStep1Store.filter((s) => String(s.nim || "") === String(targetNim) || (mhs && String(s.email || "") === String(mhs.email)));
+
+    // Fetch Step 2
+    const { data: dbStep2 } = await supabase
+      .from("proposal_magang")
+      .select("*")
+      .eq("nim", targetNim)
+      .order("created_at", { ascending: false });
+    const step2List = (dbStep2 && dbStep2.length > 0)
+      ? dbStep2
+      : memoryProposalStore.filter((p) => String(p.nim || "") === String(targetNim) || (mhs && String(p.nim || "") === String(mhs.nim)));
+
+    // Fetch Step 3
+    let { data: dbStep3 } = await supabase
+      .from("pengajuan_surat_pengantar")
+      .select("*")
+      .eq("nim", targetNim)
+      .order("created_at", { ascending: false });
+    if (!dbStep3 || dbStep3.length === 0) {
+      const { data: dbStep3Alt } = await supabase
+        .from("surat_pengantar_magang")
+        .select("*")
+        .eq("nim", targetNim)
+        .order("created_at", { ascending: false });
+      if (dbStep3Alt && dbStep3Alt.length > 0) dbStep3 = dbStep3Alt;
+    }
+    const step3List = (dbStep3 && dbStep3.length > 0)
+      ? dbStep3
+      : memorySuratStore.filter((s) => String(s.nim || "") === String(targetNim) || (mhs && String(s.email_mahasiswa || "") === String(mhs.email)));
+
+    // Fetch Step 4
+    const { data: dbStep4 } = await supabase
+      .from("pengajuan_dpl")
+      .select("*")
+      .eq("nim", targetNim)
+      .order("created_at", { ascending: false });
+    const step4List = (dbStep4 && dbStep4.length > 0)
+      ? dbStep4
+      : memoryDplStore.filter((d) => String(d.nim || "") === String(targetNim) || (mhs && String(d.nim || "") === String(mhs.nim)));
+
+    // Fetch Step 5
+    const { data: dbStep5 } = await supabase
+      .from("pengajuan_konversi_matkul")
+      .select("*")
+      .eq("nim", targetNim)
+      .order("created_at", { ascending: false });
+    const step5List = (dbStep5 && dbStep5.length > 0)
+      ? dbStep5
+      : memoryKonversiStore.filter((k) => String(k.nim || "") === String(targetNim) || (mhs && String(k.nim || "") === String(mhs.nim)));
+
+    // Fetch Step 6
+    const { data: dbStep6 } = await supabase
+      .from("surat_akhir_magang")
+      .select("*")
+      .eq("nim", targetNim)
+      .order("created_at", { ascending: false });
+    const step6List = (dbStep6 && dbStep6.length > 0)
+      ? dbStep6
+      : memorySuratAkhirStore.filter((s) => String(s.nim || "") === String(targetNim) || (mhs && String(s.email || "") === String(mhs.email)));
+
+    // Baseline Semester Periods
+    const semesterPeriods = [
+      {
+        semester_number: 6,
+        tahun_akademik: "2025/2026",
+        semester_type: "Genap",
+        semester_label: "Semester 6 - Tahun Akademik 2025/2026 (Genap)",
+        default_program: "Magang Mandiri",
+        default_instansi: "PT GoTo Gojek Tokopedia Tbk",
+        default_posisi: "Fullstack Developer Intern",
+        default_durasi: "6 Bulan",
+        default_status: "Selesai",
+        default_badge: "SELESAI VALIDASI",
+        dosen: {
+          nidn: "0512038901",
+          nama: "Dr. Indah Susanti, M.Kom",
+          email: "indah.susanti@amikom.ac.id",
+        },
+      },
+      {
+        semester_number: 7,
+        tahun_akademik: "2026/2027",
+        semester_type: "Ganjil",
+        semester_label: "Semester 7 - Tahun Akademik 2026/2027 (Ganjil)",
+        default_program: "Studi Independen Mandiri",
+        default_instansi: "Bangkit Academy by Google, GoTo, Traveloka",
+        default_posisi: "Cloud Computing & AI Specialist",
+        default_durasi: "6 Bulan",
+        default_status: "Sedang Berjalan",
+        default_badge: "DISETUJUI KAPRODI",
+        dosen: {
+          nidn: "0522108201",
+          nama: "Andi Sunyoto, M.Kom",
+          email: "andi.sunyoto@amikom.ac.id",
+        },
+      },
+    ];
+
+    const resultSemesters = semesterPeriods.map((period) => {
+      const semNum = period.semester_number;
+      const step1 = step1List.find((s) => Number(s.semester || 6) === semNum) || (semNum === 6 ? step1List[0] : null);
+      const step2 = step2List.find((p) => Number(p.semester || 6) === semNum) || (semNum === 6 ? step2List[0] : null);
+      const step3 = step3List[0];
+      const step4 = step4List[0];
+      const step5 = step5List[0];
+      const step6 = step6List[0];
+
+      const dokumenAccList = [];
+
+      // 1. Surat Pengantar Magang FIK (Step 3 / Step 1)
+      const suratPengantarUrl = step3?.surat_pengantar_url || step3?.file_surat_pengantar_pdf || step1?.surat_pengantar_url || `https://fik.amikom.ac.id/surat/SURAT-PENGANTAR-${step1?.id_magang_fakultas || 'FIK24116666'}.pdf`;
+      dokumenAccList.push({
+        id_dokumen: `doc-surat-pengantar-${semNum}`,
+        nama_dokumen: semNum === 6 ? "Surat Pengantar Magang FIK" : "Surat Pengantar Studi Independen FIK",
+        jenis_dokumen: "SURAT_PENGANTAR_FIK",
+        kategori: "Fakultas Ilmu Komputer",
+        nomor_surat: step1?.id_magang_fakultas || (semNum === 6 ? "FIK24116666" : "FIK24116667"),
+        status_approval: "Disetujui",
+        tanggal_acc: semNum === 6 ? "02 Februari 2026" : "01 Agustus 2026",
+        file_url: suratPengantarUrl,
+        is_downloadable: true,
+      });
+
+      // 2. Proposal Magang / Studi Independen (Step 2)
+      const proposalUrl = step2?.file_proposal_pdf || (semNum === 6 ? "https://drive.google.com/file/d/proposal_24_11_6666.pdf" : "https://drive.google.com/file/d/proposal_studi_independen_6667.pdf");
+      dokumenAccList.push({
+        id_dokumen: `doc-proposal-${semNum}`,
+        nama_dokumen: semNum === 6 ? "Proposal Kegiatan Magang Mandiri" : "Proposal Kegiatan Studi Independen",
+        jenis_dokumen: "PROPOSAL_MAGANG",
+        kategori: "Program Studi Informatika",
+        nomor_surat: `PROP-${semNum === 6 ? '24116666' : '24116667'}`,
+        status_approval: "Disetujui Kaprodi",
+        tanggal_acc: semNum === 6 ? "01 Februari 2026" : "01 Agustus 2026",
+        file_url: proposalUrl,
+        is_downloadable: true,
+      });
+
+      // 3. SK DPL (Step 4)
+      if (semNum === 6) {
+        const skDplUrl = step4?.sk_dpl_url || "https://fik.amikom.ac.id/sk-dpl/SK-DPL-24.11.6666.pdf";
+        dokumenAccList.push({
+          id_dokumen: `doc-sk-dpl-${semNum}`,
+          nama_dokumen: "Surat Keputusan (SK) DPL Pembimbing",
+          jenis_dokumen: "SK_DPL",
+          kategori: "Fakultas Ilmu Komputer",
+          nomor_surat: `SK-DPL-FIK24116666`,
+          status_approval: "Disetujui",
+          tanggal_acc: "03 Februari 2026",
+          file_url: skDplUrl,
+          is_downloadable: true,
+        });
+
+        // 4. Bukti Diterima Magang
+        const buktiDiterimaUrl = step4?.bukti_diterima_magang || "https://drive.google.com/bukti_goto_6666.pdf";
+        dokumenAccList.push({
+          id_dokumen: `doc-bukti-diterima-${semNum}`,
+          nama_dokumen: "Bukti Penerimaan Magang Instansi",
+          jenis_dokumen: "BUKTI_DITERIMA",
+          kategori: "Mitra Industri",
+          nomor_surat: `ACCEPT-GOTO-6666`,
+          status_approval: "Disetujui",
+          tanggal_acc: "03 Februari 2026",
+          file_url: buktiDiterimaUrl,
+          is_downloadable: true,
+        });
+
+        // 5. File KHS
+        const khsUrl = step4?.file_khs || "https://drive.google.com/khs_6666.pdf";
+        dokumenAccList.push({
+          id_dokumen: `doc-khs-${semNum}`,
+          nama_dokumen: "Kartu Hasil Studi (KHS) Transkrip",
+          jenis_dokumen: "FILE_KHS",
+          kategori: "Akademik Univ",
+          nomor_surat: `KHS-110SKS`,
+          status_approval: "Disetujui",
+          tanggal_acc: "03 Februari 2026",
+          file_url: khsUrl,
+          is_downloadable: true,
+        });
+
+        // 6. Surat Ucapan Terima Kasih (Step 6)
+        const suratTerimaKasihUrl = step6?.surat_terima_kasih_url || "https://fik.amikom.ac.id/surat/SURAT-UCAPAN-TERIMA-KASIH-FIK24116666.pdf";
+        dokumenAccList.push({
+          id_dokumen: `doc-surat-terima-kasih-${semNum}`,
+          nama_dokumen: "Surat Ucapan Terima Kasih FIK",
+          jenis_dokumen: "SURAT_TERIMA_KASIH",
+          kategori: "Fakultas Ilmu Komputer",
+          nomor_surat: `STK-FIK24116666`,
+          status_approval: "Disetujui",
+          tanggal_acc: "05 Februari 2026",
+          file_url: suratTerimaKasihUrl,
+          is_downloadable: true,
+        });
+
+        // 7. Sertifikat Magang Mitra
+        const sertifikatUrl = step6?.sertifikat_magang_url || "https://drive.google.com/file/d/sertifikat_goto_24_11_6666.pdf";
+        dokumenAccList.push({
+          id_dokumen: `doc-sertifikat-${semNum}`,
+          nama_dokumen: "Sertifikat Magang Industri GoTo",
+          jenis_dokumen: "SERTIFIKAT_MAGANG",
+          kategori: "Mitra Industri",
+          nomor_surat: `CERT-GOTO-95A`,
+          status_approval: "Sudah Dinilai Mitra",
+          tanggal_acc: "05 Februari 2026",
+          file_url: sertifikatUrl,
+          is_downloadable: true,
+        });
+      }
+
+      return {
+        semester_number: semNum,
+        tahun_akademik: period.tahun_akademik,
+        semester_type: period.semester_type,
+        semester_label: period.semester_label,
+        program: {
+          jenis_program: step2?.program_diikuti || step1?.jenis_program || period.default_program,
+          nama_instansi: step1?.nama_instansi || step2?.nama_instansi || period.default_instansi,
+          posisi: step1?.posisi || step2?.posisi || period.default_posisi,
+          durasi: step3?.periode_magang || step2?.durasi_pelaksanaan || period.default_durasi,
+          status_program: step1?.status_program || period.default_status,
+          status_badge: semNum === 6 ? "SELESAI VALIDASI" : period.default_badge,
+          dosen_pembimbing: {
+            nidn: step4?.nidn_dpl || period.dosen.nidn,
+            nama: step4?.nama_dpl || period.dosen.nama,
+            email: period.dosen.email,
+          },
+        },
+        dokumen_acc: dokumenAccList,
+        ringkasan_konversi: {
+          total_mk: semNum === 6 ? 5 : 5,
+          total_sks: semNum === 6 ? 20 : 20,
+          status_konversi: semNum === 6 ? (step5?.status_konversi || "Disetujui DPL") : "Menunggu Review DPL",
+          nilai_rata_rata: semNum === 6 ? 91.8 : null,
+          nilai_huruf: semNum === 6 ? "A" : null,
+        },
+      };
+    });
+
+    res.json({
+      status: 200,
+      message: "Riwayat magang dan berkas dokumen per semester berhasil diambil",
+      data: {
+        mahasiswa: {
+          nim: mhs.nim,
+          nama: mhs.nama,
+          email: mhs.email,
+          prodi: mhs.prodi || "Informatika",
+          angkatan: mhs.angkatan || "2024",
+          foto_profile: mhs.foto_profile,
+        },
+        total_periode: resultSemesters.length,
+        riwayat_per_semester: resultSemesters,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
 router.get("/dashboard", authenticateToken, getMahasiswaDashboard);
 router.get("/overview", authenticateToken, getMahasiswaDashboard);
+router.get("/riwayat-semester", authenticateToken, getMahasiswaRiwayatSemester);
+router.get("/dokumen-acc", authenticateToken, getMahasiswaRiwayatSemester);
 
 module.exports = {
   router,
   getMahasiswaDashboard,
+  getMahasiswaRiwayatSemester,
 };
