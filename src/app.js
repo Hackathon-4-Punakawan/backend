@@ -16,6 +16,7 @@ const dosenRouter = require("./routes/dosen");
 const mitraRouter = require("./routes/mitra");
 const dashboardMahasiswaRouter = require("./routes/dashboardMahasiswa");
 const uploadRouter = require("./routes/upload");
+const aiRouter = require("./routes/ai");
 
 const app = express();
 
