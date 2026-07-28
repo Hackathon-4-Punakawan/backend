@@ -619,6 +619,38 @@ const handleDosenKonversiReview = async (req, res, next) => {
           updated_at: new Date().toISOString(),
         })
         .eq("id_item", targetId);
+    } else if (targetNim) {
+      await supabase
+        .from("item_konversi_mk")
+        .update({
+          status_step: newStatusStep,
+          catatan_dosen: finalNote,
+          nilai_akhir_angka: scoreNum,
+          nilai_akhir_huruf: finalLetter,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("nim", targetNim);
+
+      await supabase
+        .from("item_konversi_detail")
+        .update({
+          status_item: newStatusStep,
+          catatan_dosen: finalNote,
+          nilai_angka: scoreNum,
+          nilai_huruf: finalLetter,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("nim", targetNim);
+    }
+
+    if (targetNim) {
+      await supabase
+        .from("pengajuan_konversi_matkul")
+        .update({
+          status_konversi: newStatusStep,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("nim", targetNim);
     }
 
     // Synchronize memory catalog for this student
