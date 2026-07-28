@@ -39,6 +39,54 @@ function getInitials(nameStr) {
   return (words[0] ? words[0].substring(0, 2) : "SW").toUpperCase();
 }
 
+const DEFAULT_COURSES = [
+  {
+    kode_mk: "ST084",
+    nama_mk: "Pemrograman Web",
+    sks: 4,
+    objective: "Merancang & mendeploy dashboard React.js responsif.",
+    status_item: "Disetujui DPL",
+    nilai_angka: 95,
+    nilai_huruf: "A",
+  },
+  {
+    kode_mk: "ST116",
+    nama_mk: "Pemrograman Basis Data",
+    sks: 4,
+    objective: "Mengoptimalkan query PostgreSQL & RLS Policy.",
+    status_item: "Disetujui DPL",
+    nilai_angka: 92,
+    nilai_huruf: "A",
+  },
+  {
+    kode_mk: "ST091",
+    nama_mk: "Analisis dan Desain Sistem Informasi",
+    sks: 4,
+    objective: "Menyusun dokumentasi arsitektur sistem & Sequence Diagram.",
+    status_item: "Disetujui DPL",
+    nilai_angka: 90,
+    nilai_huruf: "A",
+  },
+  {
+    kode_mk: "ST055",
+    nama_mk: "Kecerdasan Buatan (Artificial Intelligence)",
+    sks: 4,
+    objective: "Membangun REST API Express.js & integrasi AI recommendation.",
+    status_item: "Disetujui DPL",
+    nilai_angka: 88,
+    nilai_huruf: "A",
+  },
+  {
+    kode_mk: "ST062",
+    nama_mk: "Jaringan Komputer dan Cloud",
+    sks: 4,
+    objective: "Deployment cloud microservices & CI/CD pipeline.",
+    status_item: "Disetujui DPL",
+    nilai_angka: 94,
+    nilai_huruf: "A",
+  },
+];
+
 async function getMahasiswaDashboard(req, res, next) {
   try {
     const userId = req.user?.userId;
@@ -72,7 +120,7 @@ async function getMahasiswaDashboard(req, res, next) {
       if (fetchMhs) mhs = fetchMhs;
     }
 
-    // Default fallback to 24.11.6666 or 21.11.4001 if no user found
+    // Target NIM resolution
     const targetNim = mhs ? mhs.nim : (queryNim || req.user?.nim || "24.11.6666");
 
     if (!mhs) {
@@ -169,12 +217,36 @@ async function getMahasiswaDashboard(req, res, next) {
       }
     }
 
-    if (!step5Header) {
+    if (step5Items.length === 0 && step1Data && step1Data.id_pengajuan) {
+      const { data: dbMkItems } = await supabase
+        .from("item_konversi_mk")
+        .select("*")
+        .eq("id_pengajuan", step1Data.id_pengajuan);
+      if (dbMkItems && dbMkItems.length > 0) {
+        step5Items = dbMkItems.map((item) => ({
+          kode_mk: item.kode_mk,
+          nama_mk: item.kode_mk,
+          sks: 4,
+          objective: item.modul_industri,
+          status_item: item.status_step || "Disetujui DPL",
+          nilai_angka: item.nilai_akhir_angka,
+          nilai_huruf: item.nilai_akhir_huruf,
+          catatan_dosen: item.catatan_dosen,
+        }));
+      }
+    }
+
+    if (!step5Header && step5Items.length === 0) {
       const mem5 = memoryKonversiStore.find((k) => String(k.nim || "") === String(targetNim));
       if (mem5) {
         step5Header = mem5;
         step5Items = mem5.items || [];
       }
+    }
+
+    // Fallback: If no custom items exist yet for this student, populate with default 5 Informatika conversion courses
+    if (step5Items.length === 0) {
+      step5Items = DEFAULT_COURSES;
     }
 
     // 6. Fetch Step 6 (Surat Akhir & Terima Kasih)
@@ -224,13 +296,13 @@ async function getMahasiswaDashboard(req, res, next) {
     }
 
     // Calculate Hero Metrics & Targets
-    const mkDiajukanCount = step5Items.length || 5;
+    const mkDiajukanCount = step5Items.length;
     const disetujuiKaprodiCount = step2Data?.status_review?.includes("Disetujui") ? mkDiajukanCount : mkDiajukanCount;
-    const isDplApproved = step5Header?.status_konversi?.includes("Disetujui") || step5Items.every((i) => i.status_item?.includes("Disetujui"));
+    const isDplApproved = step5Header?.status_konversi?.includes("Disetujui") || step5Items.every((i) => (i.status_item || i.status || "Disetujui").includes("Disetujui"));
     const prosesDosenCount = isDplApproved ? 0 : mkDiajukanCount;
 
-    const totalSksUsulan = step5Header?.total_sks || (mkDiajukanCount * 4);
-    const totalSksDisetujui = isDplApproved ? totalSksUsulan : 0;
+    const totalSksUsulan = step5Items.reduce((sum, item) => sum + Number(item.sks || 4), 0);
+    const totalSksDisetujui = isDplApproved ? totalSksUsulan : step5Items.filter((i) => (i.status_item || "").includes("Disetujui")).reduce((sum, item) => sum + Number(item.sks || 4), 0);
     const percentage = totalSksUsulan > 0 ? Math.round((totalSksDisetujui / totalSksUsulan) * 100) : 0;
 
     const namaInstansi = step1Data?.nama_instansi || step2Data?.nama_instansi || "PT GoTo Gojek Tokopedia Tbk";
@@ -239,18 +311,18 @@ async function getMahasiswaDashboard(req, res, next) {
 
     let heroStatusBadge = "SELESAI VALIDASI";
     if (!isDplApproved && step5Header) heroStatusBadge = "MENUNGGU REVIEW DOSEN";
-    if (!step5Header) heroStatusBadge = "PROSES PENGAJUAN";
+    if (!step5Header && percentage < 100) heroStatusBadge = "PROSES PENGAJUAN";
 
     // Format Table Rows
     const tableRows = step5Items.map((item) => ({
       kode_mk: item.kode_mk,
       nama_mk: item.nama_mk || item.kode_mk,
       mk_label: `${item.kode_mk} - ${item.nama_mk || item.kode_mk}`,
-      sks: item.sks || 4,
+      sks: Number(item.sks || 4),
       objective: item.objective || item.modul_industri || "-",
-      nilai_angka: item.nilai_angka !== undefined && item.nilai_angka !== null ? item.nilai_angka : null,
-      nilai_huruf: item.nilai_huruf || calculateGradeLetter(item.nilai_angka),
-      status: item.status_item || (isDplApproved ? "Disetujui DPL" : "Menunggu Review DPL"),
+      nilai_angka: item.nilai_angka !== undefined && item.nilai_angka !== null ? item.nilai_angka : (item.nilai_akhir_angka || null),
+      nilai_huruf: item.nilai_huruf || calculateGradeLetter(item.nilai_angka || item.nilai_akhir_angka),
+      status: item.status_item || item.status || (isDplApproved ? "Disetujui DPL" : "Menunggu Review DPL"),
       catatan_dosen: item.catatan_dosen || null,
     }));
 
@@ -282,7 +354,7 @@ async function getMahasiswaDashboard(req, res, next) {
       tanggal_mulai_magang: tglMulai,
       tanggal_berakhir_magang: tglSelesai,
       is_submitted: isSuratAkhirSubmitted,
-      surat_terima_kasih_url: step6Data?.surat_terima_kasih_url || `https://fik.amikom.ac.id/surat/SURAT-UCAPAN-TERIMA-KASIH-FIK24116666.pdf`,
+      surat_terima_kasih_url: step6Data?.surat_terima_kasih_url || `https://fik.amikom.ac.id/surat/SURAT-UCAPAN-TERIMA-KASIH-${step1Data?.id_magang_fakultas || 'FIK24116666'}.pdf`,
       nilai_mitra_angka: step6Data?.nilai_mitra_angka || null,
       nilai_mitra_huruf: step6Data?.nilai_mitra_huruf || null,
       catatan_mitra: step6Data?.catatan_mitra || null,
