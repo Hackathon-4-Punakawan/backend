@@ -324,6 +324,20 @@ router.get("/dosen", async (req, res, next) => {
       }
     });
 
+    const dplStatsMap = {
+      '0522108201': { kuota: 5, defaultTotal: 3, selesai: 2, review: 1 },
+      '0515088502': { kuota: 6, defaultTotal: 4, selesai: 3, review: 1 },
+      '0518048601': { kuota: 5, defaultTotal: 2, selesai: 1, review: 1 },
+      '0512038901': { kuota: 5, defaultTotal: 5, selesai: 4, review: 1 },
+      '0509077801': { kuota: 5, defaultTotal: 1, selesai: 1, review: 0 },
+      '0511048102': { kuota: 7, defaultTotal: 4, selesai: 2, review: 2 },
+      '0528098301': { kuota: 5, defaultTotal: 2, selesai: 2, review: 0 },
+      '0503027902': { kuota: 8, defaultTotal: 6, selesai: 5, review: 1 },
+      '0514068703': { kuota: 5, defaultTotal: 3, selesai: 1, review: 2 },
+      '0519118401': { kuota: 5, defaultTotal: 2, selesai: 2, review: 0 },
+      '0525128802': { kuota: 5, defaultTotal: 1, selesai: 0, review: 1 }
+    };
+
     const rawList = (dbDosen && dbDosen.length > 0) ? dbDosen : [
       { nidn: '0522108201', nama: 'Andi Sunyoto, M.Kom.', email: 'andi.sunyoto@amikom.ac.id', bidang_keahlian: 'Cloud Infrastructure & Computer Network', is_active: true },
       { nidn: '0515088502', nama: 'Bambang Kurniawan, M.Eng', email: 'bambang.k@amikom.ac.id', bidang_keahlian: 'Artificial Intelligence & Data Science', is_active: true },
@@ -338,15 +352,24 @@ router.get("/dosen", async (req, res, next) => {
       { nidn: '0525128802', nama: 'Yuli Astuti, M.Kom', email: 'yuli.astuti@amikom.ac.id', bidang_keahlian: 'Game Development & Interactive Media', is_active: true }
     ];
 
-    const result = rawList.map((d) => ({
-      nidn: d.nidn,
-      nama: d.nama,
-      email: d.email,
-      bidang_keahlian: d.bidang_keahlian || "Software Engineering & Data Science",
-      foto_profile: d.foto_profile || `https://ui-avatars.com/api/?name=${encodeURIComponent(d.nama)}&background=7e22ce&color=fff&bold=true`,
-      is_active: d.is_active !== false,
-      total_mahasiswa_bimbingan: countMap.get(d.nidn) || 2,
-    }));
+    const result = rawList.map((d) => {
+      const dbCount = countMap.get(d.nidn);
+      const stats = dplStatsMap[d.nidn] || { kuota: 5, defaultTotal: 2, selesai: 1, review: 1 };
+      const totalBimbingan = dbCount !== undefined ? dbCount : stats.defaultTotal;
+
+      return {
+        nidn: d.nidn,
+        nama: d.nama,
+        email: d.email,
+        bidang_keahlian: d.bidang_keahlian || "Software Engineering & Data Science",
+        foto_profile: d.foto_profile || `https://ui-avatars.com/api/?name=${encodeURIComponent(d.nama)}&background=7e22ce&color=fff&bold=true`,
+        is_active: d.is_active !== false,
+        total_mahasiswa_bimbingan: totalBimbingan,
+        kuota_max: stats.kuota,
+        selesai_evaluasi: stats.selesai,
+        menunggu_review: stats.review
+      };
+    });
 
     res.json({
       status: 200,
