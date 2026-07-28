@@ -10,7 +10,7 @@ function httpError(status, message) {
   return error;
 }
 
-const memorySuratAkhirStore = [];
+const { memorySuratAkhirStore } = require("../utils/sharedStore");
 
 function generateThankYouLetterUrl(idMagang) {
   const cleanId = String(idMagang || "FIK6199364").trim();

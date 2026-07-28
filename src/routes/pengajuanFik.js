@@ -1,21 +1,27 @@
-const crypto = require("crypto");
 const express = require("express");
 const supabase = require("../config/supabase");
-const { authenticateToken, requireRole } = require("../middleware/auth");
+const { authenticateToken } = require("../middleware/auth");
+const {
+  memoryStep1Store,
+  memoryProposalStore,
+  memorySuratStore,
+  memoryDplStore,
+  memoryKonversiStore,
+  memorySuratAkhirStore,
+  memorySemesterStore,
+} = require("../utils/sharedStore");
 
 const router = express.Router();
+
+const AUTO_ACC_DELAY_MS = 5000;
+const FIK_WEB_STATUS_URL = "https://fik.amikom.ac.id/page/status-pengajuan-layanan";
+const FIK_TELEGRAM_BOT_URL = "http://t.me/AMIKOMFakultasbot";
 
 function httpError(status, message) {
   const error = new Error(message);
   error.status = status;
   return error;
 }
-
-const JENIS_PENGAJUAN_VALID = ["Pengajuan ID Magang", "Pra Survey Magang", "Id Magang"];
-const FIK_WEB_STATUS_URL = "https://fik.amikom.ac.id/page/status-pengajuan-layanan";
-const FIK_TELEGRAM_BOT_URL = "http://t.me/AMIKOMFakultasbot";
-const AUTO_ACC_DELAY_MS = 5000; // 5 Detik Auto-ACC Simulasi FIK
-const { memoryProposalStore, memorySuratStore, memoryDplStore, memoryKonversiStore } = require("../utils/sharedStore");
 
 const BULAN_INDONESIA = [
   "Januari", "Februari", "Maret", "April", "Mei", "Juni",
@@ -32,78 +38,66 @@ function formatIndonesianDate(dateStr) {
   return `${day} ${month} ${year}`;
 }
 
-function resolveAngkatan(mhs) {
-  if (mhs && mhs.angkatan && String(mhs.angkatan).trim()) {
-    return String(mhs.angkatan).trim();
-  }
-  if (mhs && mhs.nim) {
-    const match = String(mhs.nim).trim().match(/^(\d{2})/);
-    if (match) {
-      return (2000 + Number.parseInt(match[1], 10)).toString();
-    }
-  }
-  return new Date().getFullYear().toString();
-}
+function calculateAcademicYearAndSemester(nim, overrideSemester) {
+  const match = String(nim || "").match(/^(\d{2})/);
+  const angkatanYear = match ? 2000 + Number.parseInt(match[1], 10) : 2021;
+  const currentYear = new Date().getFullYear();
+  const currentMonth = new Date().getMonth() + 1;
 
-function calculateSemesterAndAcademicYear(angkatanStr, referenceDate = new Date()) {
-  const currentYear = referenceDate.getFullYear();
-  const currentMonth = referenceDate.getMonth() + 1; // 1 to 12
-  const entryYear = Number.parseInt(angkatanStr, 10) || currentYear;
-
-  let academicYear = "";
-  let semester = 1;
-
-  if (currentMonth >= 8) {
-    academicYear = `${currentYear}/${currentYear + 1}`;
-    semester = (currentYear - entryYear) * 2 + 1;
+  let calculatedSemester = (currentYear - angkatanYear) * 2;
+  if (currentMonth >= 2 && currentMonth <= 7) {
+    calculatedSemester += 0; // Genap
   } else {
-    academicYear = `${currentYear - 1}/${currentYear}`;
-    semester = (currentYear - 1 - entryYear) * 2 + 2;
+    calculatedSemester += 1; // Ganjil
   }
+  if (calculatedSemester < 1) calculatedSemester = 6;
 
-  if (semester < 1) semester = 1;
+  const semesterNum = overrideSemester ? Number.parseInt(overrideSemester, 10) : calculatedSemester;
+  const isOdd = semesterNum % 2 !== 0;
+  const startAcademicYear = angkatanYear + Math.floor((semesterNum - 1) / 2);
+  const academicYearStr = `${startAcademicYear}/${startAcademicYear + 1}`;
+  const semesterTypeStr = isOdd ? "Ganjil" : "Genap";
 
-  return { semester, tahunAkademik: academicYear };
+  return {
+    semesterNumber: semesterNum,
+    semesterLabel: `Semester ${semesterNum} (${semesterTypeStr})`,
+    academicYear: academicYearStr,
+    fullLabel: `Semester ${semesterNum} - ${academicYearStr}`,
+  };
 }
 
-function generateOfficialIdMagangFik(idPengajuan) {
-  // Format persis FIK: FIK + 7-digit angka (contoh: FIK6199364)
-  const baseNum = 6199360 + Number(idPengajuan || 1);
-  return `FIK${baseNum}`;
+function generateOfficialIdMagangFik(pengajuanId) {
+  const numId = Number.parseInt(pengajuanId, 10);
+  if (isNaN(numId)) return "FIK6199364";
+  return `FIK${6199364 + numId}`;
 }
 
-// Function to trigger auto-ACC for a given application ID
-async function triggerAutoAccFik(idPengajuan) {
+// Function to trigger auto-ACC for a given pengajuan_magang ID after 5 seconds
+async function triggerAutoAccPengajuanFik(idPengajuan) {
   try {
-    const formattedIdMagang = generateOfficialIdMagangFik(idPengajuan);
-    const defaultSuratUrl = `https://fik.amikom.ac.id/surat/SURAT-PENGANTAR-${formattedIdMagang}.pdf`;
-    const payload = {
-      id_magang_fakultas: formattedIdMagang,
-      nomor_layanan_fik: formattedIdMagang,
-      status_surat_fakultas: "Disetujui",
-      status_pengajuan: "Disetujui",
-      surat_pengantar_url: defaultSuratUrl,
-      catatan_revisi_proposal: "ACC Otomatis oleh Sistem FIK (Simulasi Layanan)",
-    };
+    const officialIdMagang = generateOfficialIdMagangFik(idPengajuan);
+    const pdfUrl = `https://fik.amikom.ac.id/surat/SURAT-PENGANTAR-${officialIdMagang}.pdf`;
 
-    const { error } = await supabase
+    await supabase
       .from("pengajuan_magang")
-      .update(payload)
+      .update({
+        status_surat_fakultas: "Disetujui",
+        id_magang_fakultas: officialIdMagang,
+        nomor_layanan_fik: officialIdMagang,
+        surat_pengantar_url: pdfUrl,
+        updated_at: new Date().toISOString(),
+      })
       .eq("id_pengajuan", idPengajuan);
 
-    if (error && error.message && error.message.includes("schema cache")) {
-      await supabase
-        .from("pengajuan_magang")
-        .update({ status_program: "Sedang Berjalan" })
-        .eq("id_pengajuan", idPengajuan);
-    }
-    console.log(`✅ Auto-ACC FIK berhasil untuk ID Pengajuan #${idPengajuan} dengan ID Magang: ${formattedIdMagang}`);
+    console.log(`✅ Auto-ACC Pengajuan FIK berhasil untuk ID #${idPengajuan} (${officialIdMagang})`);
   } catch (err) {
-    console.error(`⚠️ Gagal Auto-ACC FIK untuk ID Pengajuan #${idPengajuan}:`, err.message);
+    console.error(`⚠️ Gagal Auto-ACC Pengajuan FIK ID #${idPengajuan}:`, err.message);
   }
 }
 
-// 1. GET HELPER INFO FOR FIK SUBMISSION FORM
+// ----------------------------------------------------------------------
+// 1. GET HELPER INFO FOR FORM REGISTRATION (PRE-FILL FORM STEP 1)
+// ----------------------------------------------------------------------
 router.get("/helper-info", authenticateToken, async (req, res, next) => {
   try {
     const userId = req.user.userId;
@@ -115,26 +109,27 @@ router.get("/helper-info", authenticateToken, async (req, res, next) => {
       .maybeSingle();
 
     if (errMhs || !mhs) {
-      throw httpError(404, "Profil mahasiswa tidak ditemukan untuk user ini");
+      throw httpError(404, "Profil mahasiswa tidak ditemukan. Silakan isi profil terlebih dahulu.");
     }
 
-    const mhsAngkatan = resolveAngkatan(mhs);
-    const { semester, tahunAkademik } = calculateSemesterAndAcademicYear(mhsAngkatan);
+    const { fullLabel, semesterNumber, academicYear } = calculateAcademicYearAndSemester(mhs.nim);
 
     res.json({
+      status: 200,
+      message: "Data pre-fill form pengajuan FIK berhasil diambil",
       data: {
-        email: mhs.email,
-        nama: mhs.nama,
-        nim: mhs.nim,
-        prodi: mhs.prodi || "Informatika",
-        angkatan: mhsAngkatan,
-        semester,
-        tahun_akademik: tahunAkademik,
-        jenis_pengajuan_options: JENIS_PENGAJUAN_VALID,
-        auto_acc_delay_seconds: 5,
-        tracking_urls: {
-          web_fik: FIK_WEB_STATUS_URL,
-          telegram_bot: FIK_TELEGRAM_BOT_URL,
+        mahasiswa: {
+          nama: mhs.nama,
+          email: mhs.email,
+          nim: mhs.nim,
+          prodi: mhs.prodi || "Informatika",
+          angkatan: mhs.angkatan,
+        },
+        auto_filled: {
+          semester: semesterNumber,
+          tahun_akademik: academicYear,
+          sub_info_label: fullLabel,
+          jenis_pengajuan: "Pengajuan ID Magang",
         },
       },
     });
@@ -143,39 +138,27 @@ router.get("/helper-info", authenticateToken, async (req, res, next) => {
   }
 });
 
-// 2. SUBMIT / EDIT PENGAJUAN SURAT / ID MAGANG FIK
-const handleSavePengajuanFik = async (req, res, next) => {
+// ----------------------------------------------------------------------
+// 2. SUBMIT FORM PENDAFTARAN FIK (CREATE ID MAGANG & PENGAJUAN SURAT)
+// ----------------------------------------------------------------------
+router.post("/", authenticateToken, async (req, res, next) => {
   try {
     const userId = req.user.userId;
     const {
       jenis_pengajuan,
       kepada_yth,
-      tujuan_surat,
       nama_instansi,
       alamat_instansi,
-      jenis_program,
       posisi,
-      durasi_bulan,
-      tanggal_mulai,
-      tanggal_selesai,
+      jenis_program,
+      semester: inputSemester,
+      tujuan_surat,
     } = req.body;
 
-    if (!jenis_pengajuan || !JENIS_PENGAJUAN_VALID.includes(jenis_pengajuan)) {
-      throw httpError(
-        400,
-        `Jenis pengajuan harus salah satu dari: ${JENIS_PENGAJUAN_VALID.join(", ")}`
-      );
-    }
-
     if (!nama_instansi || !nama_instansi.trim()) {
-      throw httpError(400, "Nama instansi wajib diisi");
+      throw httpError(400, "Nama instansi/perusahaan wajib diisi");
     }
 
-    if (!alamat_instansi || !alamat_instansi.trim()) {
-      throw httpError(400, "Alamat instansi wajib diisi");
-    }
-
-    // Get Student Profile
     const { data: mhs, error: errMhs } = await supabase
       .from("mahasiswa")
       .select("*")
@@ -183,226 +166,101 @@ const handleSavePengajuanFik = async (req, res, next) => {
       .maybeSingle();
 
     if (errMhs || !mhs) {
-      throw httpError(404, "Profil mahasiswa tidak ditemukan. Silakan lengkapi profil terlebih dahulu.");
+      throw httpError(404, "Profil mahasiswa tidak ditemukan.");
     }
 
-    const mhsAngkatan = resolveAngkatan(mhs);
-    const { semester: autoSemester, tahunAkademik: autoTahunAkademik } =
-      calculateSemesterAndAcademicYear(mhsAngkatan);
+    const { fullLabel, semesterNumber, academicYear } = calculateAcademicYearAndSemester(mhs.nim, inputSemester);
 
-    const semester = req.body.semester ? Number.parseInt(req.body.semester, 10) : autoSemester;
-    const tahun_akademik = req.body.tahun_akademik || autoTahunAkademik;
-    const targetTujuanSurat = kepada_yth || tujuan_surat || `Yth. Pimpinan ${nama_instansi.trim()}`;
-
-    // Check if student already submitted an application in the SAME semester
-    const { memorySemesterStore } = require("../utils/sharedStore");
-    const semesterKey = `${mhs.nim}:${semester}`;
-
-    const { data: dbSubmissions } = await supabase
-      .from("pengajuan_magang")
-      .select("id_pengajuan, created_at, status_surat_fakultas, status_pengajuan")
-      .eq("nim", mhs.nim);
-
-    let hasRejectedOrRevisi = false;
-    let existingRejectedId = null;
-
-    if (dbSubmissions && dbSubmissions.length > 0) {
-      for (const sub of dbSubmissions) {
-        const statusStr = (sub.status_surat_fakultas || sub.status_pengajuan || "").toUpperCase();
-        if (statusStr.includes("TOLAK") || statusStr.includes("REVISI")) {
-          hasRejectedOrRevisi = true;
-          existingRejectedId = sub.id_pengajuan;
-          break;
-        }
-      }
-
-      if (!memorySemesterStore.has(semesterKey) && !hasRejectedOrRevisi) {
-        memorySemesterStore.add(`${mhs.nim}:6`);
-      }
-    }
-
-    // Allow resubmission/edit if previous status is Ditolak/Revisi; block only active non-rejected submissions
-    if (memorySemesterStore.has(semesterKey) && !hasRejectedOrRevisi) {
-      throw httpError(
-        409,
-        `Anda sudah memiliki pengajuan magang aktif pada Semester ${semester} (${tahun_akademik}). Jika pengajuan sebelumnya Ditolak atau Minta Revisi, Anda dapat menyesuaikannya berdasarkan catatan dosen.`
-      );
-    }
-
-    // Temporary pending tracking ID until approved
-    const tempTrackingCode = `FIK-PENDING-${new Date().getFullYear()}-${crypto.randomBytes(2).toString("hex").toUpperCase()}`;
-    const nowIso = new Date().toISOString();
-
-    const fullPayload = {
-      nim: mhs.nim,
-      id_magang_fakultas: tempTrackingCode,
-      nomor_layanan_fik: tempTrackingCode,
-      jenis_surat_fakultas: jenis_pengajuan,
-      nama_instansi: nama_instansi.trim(),
-      alamat_instansi: alamat_instansi.trim(),
-      tujuan_surat: targetTujuanSurat,
-      semester,
-      tahun_akademik,
-      jenis_program: jenis_program || `FIK: ${jenis_pengajuan}`,
-      posisi: posisi || `${nama_instansi.trim()} (${jenis_pengajuan})`,
-      durasi_bulan: durasi_bulan ? Number.parseInt(durasi_bulan, 10) : 6,
-      tanggal_mulai: tanggal_mulai || null,
-      tanggal_selesai: tanggal_selesai || null,
-      status_surat_fakultas: "Diproses Fakultas",
-      status_pengajuan: "Menunggu Verifikasi",
-      status_program: "Sedang Berjalan",
-      created_at: nowIso,
-    };
-
-    let data = null;
-    let { data: directData, error: directErr } = await supabase
-      .from("pengajuan_magang")
-      .insert(fullPayload)
-      .select()
+    let idMitra = 1;
+    const { data: existingMitra } = await supabase
+      .from("mitra_industri")
+      .select("id_mitra")
+      .ilike("nama_perusahaan", `%${nama_instansi.trim()}%`)
+      .limit(1)
       .maybeSingle();
 
-    memorySemesterStore.add(semesterKey);
-
-    if (directErr && directErr.message && (directErr.message.includes("pengajuan_magang_pkey") || directErr.message.includes("duplicate key"))) {
-      const { data: maxRow } = await supabase
-        .from("pengajuan_magang")
-        .select("id_pengajuan")
-        .order("id_pengajuan", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      const nextId = (maxRow?.id_pengajuan || 0) + 1;
-      fullPayload.id_pengajuan = nextId;
-
-      const { data: fixedData, error: fixedErr } = await supabase
-        .from("pengajuan_magang")
-        .insert(fullPayload)
-        .select()
-        .maybeSingle();
-
-      if (fixedErr && fixedErr.message && fixedErr.message.includes("schema cache")) {
-        const fallbackPayload = {
-          id_pengajuan: nextId,
-          nim: mhs.nim,
-          jenis_program: jenis_program || `FIK: ${jenis_pengajuan}`,
-          posisi: `${nama_instansi.trim()} (${posisi || jenis_pengajuan})`,
-          durasi_bulan: durasi_bulan ? Number.parseInt(durasi_bulan, 10) : 6,
-          tanggal_mulai: tanggal_mulai || null,
-          tanggal_selesai: tanggal_selesai || null,
-          status_program: "Sedang Berjalan",
-          created_at: nowIso,
-        };
-        const { data: retryData, error: retryErr } = await supabase
-          .from("pengajuan_magang")
-          .insert(fallbackPayload)
-          .select()
-          .single();
-        if (retryErr) throw httpError(400, retryErr.message);
-        data = { ...retryData, created_at: retryData.created_at || nowIso };
-      } else if (fixedErr) {
-        throw httpError(400, fixedErr.message);
-      } else {
-        data = fixedData;
-      }
-    } else if (directErr) {
-      if (directErr.message && directErr.message.includes("schema cache")) {
-        const fallbackPayload = {
-          nim: mhs.nim,
-          jenis_program: jenis_program || `FIK: ${jenis_pengajuan}`,
-          posisi: `${nama_instansi.trim()} (${posisi || jenis_pengajuan})`,
-          durasi_bulan: durasi_bulan ? Number.parseInt(durasi_bulan, 10) : 6,
-          tanggal_mulai: tanggal_mulai || null,
-          tanggal_selesai: tanggal_selesai || null,
-          status_program: "Sedang Berjalan",
-          created_at: nowIso,
-        };
-
-        let { data: retryData, error: retryErr } = await supabase
-          .from("pengajuan_magang")
-          .insert(fallbackPayload)
-          .select()
-          .maybeSingle();
-
-        if (retryErr && retryErr.message && retryErr.message.includes("pengajuan_magang_pkey")) {
-          const { data: maxRow } = await supabase
-            .from("pengajuan_magang")
-            .select("id_pengajuan")
-            .order("id_pengajuan", { ascending: false })
-            .limit(1)
-            .maybeSingle();
-          fallbackPayload.id_pengajuan = (maxRow?.id_pengajuan || 0) + 1;
-          const retrySeq = await supabase
-            .from("pengajuan_magang")
-            .insert(fallbackPayload)
-            .select()
-            .single();
-          if (retrySeq.error) throw httpError(400, retrySeq.error.message);
-          retryData = retrySeq.data;
-        } else if (retryErr) {
-          throw httpError(400, retryErr.message);
-        }
-
-        data = {
-          ...retryData,
-          id_magang_fakultas: tempTrackingCode,
-          nomor_layanan_fik: tempTrackingCode,
-          jenis_surat_fakultas: jenis_pengajuan,
-          nama_instansi: nama_instansi.trim(),
-          alamat_instansi: alamat_instansi.trim(),
-          tujuan_surat: targetTujuanSurat,
-          semester,
-          tahun_akademik,
-          status_surat_fakultas: "Diproses Fakultas",
-          status_pengajuan: "Menunggu Verifikasi",
-          created_at: retryData.created_at || nowIso,
-        };
-      } else {
-        throw httpError(400, directErr.message);
-      }
-    } else {
-      data = directData;
+    if (existingMitra) {
+      idMitra = existingMitra.id_mitra;
     }
 
-    // Schedule 5-Second Auto-ACC Background Timer
-    const createdId = data.id_pengajuan;
-    if (createdId) {
-      setTimeout(() => {
-        triggerAutoAccFik(createdId);
-      }, AUTO_ACC_DELAY_MS);
+    let defaultDplNidn = "0512038901";
+    const { data: defaultDpl } = await supabase
+      .from("dosen_pembimbing")
+      .select("nidn")
+      .eq("is_active", true)
+      .limit(1)
+      .maybeSingle();
+
+    if (defaultDpl) {
+      defaultDplNidn = defaultDpl.nidn;
     }
+
+    const payload = {
+      nim: mhs.nim,
+      id_mitra: idMitra,
+      nidn: defaultDplNidn,
+      id_admin: 1,
+      nama_instansi: nama_instansi.trim(),
+      alamat_instansi: alamat_instansi ? alamat_instansi.trim() : null,
+      tujuan_surat: kepada_yth || tujuan_surat || "Kepada Yth. Head of HRD / Engineering",
+      jenis_program: jenis_program || "Magang Mandiri",
+      posisi: posisi ? posisi.trim() : "Software Engineer Intern",
+      durasi_bulan: 6,
+      semester: semesterNumber,
+      tahun_akademik: academicYear,
+      status_pengajuan: "Diproses",
+      status_program: "Sedang Berjalan",
+      status_surat_fakultas: "Diproses Fakultas",
+      surat_pengantar_url: null,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+
+    const { data: newPengajuan, error: errInsert } = await supabase
+      .from("pengajuan_magang")
+      .insert(payload)
+      .select()
+      .single();
+
+    if (errInsert) {
+      throw httpError(400, errInsert.message);
+    }
+
+    const createdId = newPengajuan ? newPengajuan.id_pengajuan : (memoryStep1Store.length + 1);
+    memoryStep1Store.unshift(newPengajuan || { id_pengajuan: createdId, ...payload });
+
+    setTimeout(() => {
+      triggerAutoAccPengajuanFik(createdId);
+    }, AUTO_ACC_DELAY_MS);
 
     res.status(201).json({
-      message: "Pengajuan ID Magang / Surat FIK berhasil dikirim. Status & ID Magang resmi FIK akan terbit dalam 5 detik.",
+      status: 201,
+      message: "Form Pendaftaran FIK berhasil dikirim. Pengajuan ID Magang sedang diproses (Auto-ACC 5s).",
       data: {
-        ...data,
-        id_magang_fakultas: tempTrackingCode,
+        id_pengajuan: createdId,
+        id_magang_fakultas: "Diproses (Auto-ACC 5s)",
         status_surat_fakultas: "Diproses Fakultas",
-        status_pengajuan: "Menunggu Verifikasi",
+        sub_info: fullLabel,
         mahasiswa: {
           nama: mhs.nama,
           nim: mhs.nim,
           email: mhs.email,
-          prodi: mhs.prodi || "Informatika",
         },
-        tracking_info: {
-          id_magang_fakultas: tempTrackingCode,
-          status_surat_fakultas: "Diproses Fakultas",
-          auto_acc_in_seconds: 5,
-          web_fik: FIK_WEB_STATUS_URL,
-          telegram_bot: FIK_TELEGRAM_BOT_URL,
+        detail: newPengajuan,
+        tracking: {
+          web_fik_url: FIK_WEB_STATUS_URL,
+          telegram_bot_url: FIK_TELEGRAM_BOT_URL,
         },
       },
     });
   } catch (err) {
     next(err);
   }
-};
+});
 
-router.post("/", authenticateToken, requireRole(["MAHASISWA"]), handleSavePengajuanFik);
-router.put("/", authenticateToken, requireRole(["MAHASISWA"]), handleSavePengajuanFik);
-router.put("/:id", authenticateToken, requireRole(["MAHASISWA"]), handleSavePengajuanFik);
-
-// 3. GET MY FIK SUBMISSIONS STATUS (FOR DASHBOARD MONITORING WITH OFFICIAL ID MAGANG FIK)
+// ----------------------------------------------------------------------
+// 3. MONITORING STATUS PENGAJUAN FIK (MY-STATUS)
+// ----------------------------------------------------------------------
 router.get("/my-status", authenticateToken, async (req, res, next) => {
   try {
     const userId = req.user.userId;
@@ -414,71 +272,65 @@ router.get("/my-status", authenticateToken, async (req, res, next) => {
       .maybeSingle();
 
     if (errMhs || !mhs) {
-      throw httpError(404, "Profil mahasiswa tidak ditemukan");
+      throw httpError(404, "Profil mahasiswa tidak ditemukan.");
     }
 
-    const { data: list, error: errList } = await supabase
+    const { data: listPengajuan } = await supabase
       .from("pengajuan_magang")
       .select("*")
       .eq("nim", mhs.nim)
       .order("created_at", { ascending: false });
 
-    if (errList) throw httpError(400, errList.message);
+    if (!listPengajuan || listPengajuan.length === 0) {
+      return res.json({
+        status: 200,
+        message: "Mahasiswa belum mengajukan Pendaftaran ID Magang FIK",
+        data: null,
+      });
+    }
 
+    const latest = listPengajuan[0];
     const now = new Date();
-    const formattedList = (list || []).map((item) => {
-      const parsedDate = item.created_at ? new Date(item.created_at) : null;
-      const createdAt = parsedDate && !isNaN(parsedDate.getTime()) ? parsedDate : now;
-      const ageMs = Math.max(0, now.getTime() - createdAt.getTime());
-      const rawStatus = item.status_surat_fakultas || "Diproses Fakultas";
+    const parsedDate = latest.created_at ? new Date(latest.created_at) : null;
+    const createdAt = parsedDate && !isNaN(parsedDate.getTime()) ? parsedDate : now;
+    const ageMs = Math.max(0, now.getTime() - createdAt.getTime());
 
-      const isAutoApproved = rawStatus === "Disetujui" || ageMs >= AUTO_ACC_DELAY_MS;
-      const finalStatus = isAutoApproved ? "Disetujui" : "Diproses Fakultas";
-      const officialIdMagang = isAutoApproved
-        ? generateOfficialIdMagangFik(item.id_pengajuan)
-        : (item.id_magang_fakultas || "Diproses");
+    const isAutoApproved = latest.status_surat_fakultas === "Disetujui" || ageMs >= AUTO_ACC_DELAY_MS;
+    const officialIdMagang = isAutoApproved ? generateOfficialIdMagangFik(latest.id_pengajuan) : (latest.id_magang_fakultas || "Diproses");
+    const pdfUrl = latest.surat_pengantar_url || `https://fik.amikom.ac.id/surat/SURAT-PENGANTAR-${officialIdMagang}.pdf`;
 
-      const defaultSuratUrl = item.surat_pengantar_url || `https://fik.amikom.ac.id/surat/SURAT-PENGANTAR-${officialIdMagang}.pdf`;
-
-      if (rawStatus !== "Disetujui" && ageMs >= AUTO_ACC_DELAY_MS) {
-        triggerAutoAccFik(item.id_pengajuan);
-      }
-
-      return {
-        ...item,
-        id_magang_fakultas: officialIdMagang,
-        nomor_layanan_fik: officialIdMagang,
-        jenis_surat_fakultas: item.jenis_surat_fakultas || item.jenis_program || "Pengajuan ID Magang",
-        nama_instansi: item.nama_instansi || item.posisi || "-",
-        alamat_instansi: item.alamat_instansi || "-",
-        tujuan_surat: item.tujuan_surat || "Kepada Yth. Pimpinan Instansi",
-        status_surat_fakultas: finalStatus,
-        status_pengajuan: isAutoApproved ? "Disetujui" : (item.status_pengajuan || "Menunggu Verifikasi"),
-        surat_pengantar_url: isAutoApproved ? defaultSuratUrl : item.surat_pengantar_url,
-        mahasiswa: {
-          nama: mhs.nama,
-          nim: mhs.nim,
-          email: mhs.email,
-          prodi: mhs.prodi || "Informatika",
-        },
-        tracking: {
+    if (isAutoApproved && latest.status_surat_fakultas !== "Disetujui") {
+      await supabase
+        .from("pengajuan_magang")
+        .update({
+          status_surat_fakultas: "Disetujui",
           id_magang_fakultas: officialIdMagang,
-          status_surat_fakultas: finalStatus,
-          surat_pengantar_url: isAutoApproved ? defaultSuratUrl : item.surat_pengantar_url,
-          web_fik_url: FIK_WEB_STATUS_URL,
-          telegram_bot_url: FIK_TELEGRAM_BOT_URL,
-        },
-      };
-    });
+          nomor_layanan_fik: officialIdMagang,
+          surat_pengantar_url: pdfUrl,
+        })
+        .eq("id_pengajuan", latest.id_pengajuan);
+    }
+
+    const { fullLabel } = calculateAcademicYearAndSemester(mhs.nim, latest.semester);
 
     res.json({
-      data: formattedList,
-      meta: {
-        total: formattedList.length,
-        auto_acc_delay_seconds: 5,
-        tracking_urls: {
-          web_fik: FIK_WEB_STATUS_URL,
-          telegram_bot: FIK_TELEGRAM_BOT_URL,
+      status: 200,
+      message: "Status pengajuan ID Magang FIK berhasil diambil",
+      data: {
+        id_pengajuan: latest.id_pengajuan,
+        id_magang_fakultas: officialIdMagang,
+        nomor_layanan_fik: officialIdMagang,
+        jenis_pengajuan: "Pengajuan ID Magang",
+        sub_info: fullLabel,
+        nama_instansi: latest.nama_instansi,
+        tujuan_surat: latest.tujuan_surat,
+        posisi: latest.posisi,
+        status_surat_fakultas: isAutoApproved ? "Disetujui" : "Diproses Fakultas",
+        surat_pengantar_url: isAutoApproved ? pdfUrl : null,
+        created_at: latest.created_at,
+        tracking: {
+          web_fik_url: FIK_WEB_STATUS_URL,
+          telegram_bot_url: FIK_TELEGRAM_BOT_URL,
         },
       },
     });
@@ -487,110 +339,61 @@ router.get("/my-status", authenticateToken, async (req, res, next) => {
   }
 });
 
-// 4. UPDATE STATUS SURAT FAKULTAS (FOR ADMIN / FAKULTAS)
-router.patch("/:id/status", authenticateToken, async (req, res, next) => {
-  try {
-    const { id } = req.params;
-    const { status_surat_fakultas, id_magang_fakultas, nomor_layanan_fik, surat_pengantar_url, catatan_revisi_proposal } = req.body;
-
-    const updatePayload = {};
-    if (status_surat_fakultas) updatePayload.status_surat_fakultas = status_surat_fakultas;
-    
-    // Auto-generate official ID Magang if status set to Disetujui and id_magang_fakultas not provided
-    if (status_surat_fakultas === "Disetujui" && !id_magang_fakultas) {
-      const generatedId = generateOfficialIdMagangFik(id);
-      updatePayload.id_magang_fakultas = generatedId;
-      updatePayload.nomor_layanan_fik = generatedId;
-      if (!surat_pengantar_url) {
-        updatePayload.surat_pengantar_url = `https://fik.amikom.ac.id/surat/SURAT-PENGANTAR-FIK-${String(id).padStart(4, "0")}.pdf`;
-      }
-    } else {
-      if (id_magang_fakultas) updatePayload.id_magang_fakultas = id_magang_fakultas;
-      if (nomor_layanan_fik) updatePayload.nomor_layanan_fik = nomor_layanan_fik;
-    }
-
-    if (surat_pengantar_url) updatePayload.surat_pengantar_url = surat_pengantar_url;
-    if (catatan_revisi_proposal !== undefined) updatePayload.catatan_revisi_proposal = catatan_revisi_proposal;
-
-    if (Object.keys(updatePayload).length === 0) {
-      throw httpError(400, "Tidak ada data status yang diperbarui");
-    }
-
-    let data = null;
-    const { data: directData, error: directErr } = await supabase
-      .from("pengajuan_magang")
-      .update(updatePayload)
-      .eq("id_pengajuan", id)
-      .select()
-      .maybeSingle();
-
-    if (directErr && directErr.message && directErr.message.includes("schema cache")) {
-      const { data: fetchRow } = await supabase
-        .from("pengajuan_magang")
-        .select("*")
-        .eq("id_pengajuan", id)
-        .maybeSingle();
-
-      if (!fetchRow) throw httpError(404, "Data pengajuan tidak ditemukan");
-
-      data = {
-        ...fetchRow,
-        status_surat_fakultas: status_surat_fakultas || fetchRow.status_surat_fakultas || "Diproses Fakultas",
-        id_magang_fakultas: updatePayload.id_magang_fakultas || fetchRow.id_magang_fakultas,
-      };
-    } else if (directErr) {
-      throw httpError(400, directErr.message);
-    } else {
-      data = directData;
-    }
-
-    res.json({
-      message: "Status pengajuan surat FIK berhasil diperbarui",
-      data,
-    });
-  } catch (err) {
-    next(err);
-  }
-});
-
-// 5. UNIFIED API GET ALL DATA STEP 1, STEP 2, AND STEP 3
+// ----------------------------------------------------------------------
+// 4. UNIFIED 5-STEP HISTORY & TRACKING (GET /all-steps & GET /history)
+// ----------------------------------------------------------------------
 router.get("/all-steps", authenticateToken, async (req, res, next) => {
   try {
     const userId = req.user.userId;
-    const { nim: targetNim } = req.query;
+    const studentNim = req.user.nim || req.query.nim;
 
-    let studentNim = targetNim;
     let mhs = null;
-
-    if (!studentNim) {
-      const { data: fetchMhs, error: errMhs } = await supabase
+    if (userId) {
+      const { data: fetchMhs } = await supabase
         .from("mahasiswa")
         .select("*")
         .eq("user_id", userId)
         .maybeSingle();
+      if (fetchMhs) mhs = fetchMhs;
+    }
 
-      if (errMhs || !fetchMhs) {
-        throw httpError(404, "Profil mahasiswa tidak ditemukan untuk user ini");
-      }
-      mhs = fetchMhs;
-      studentNim = fetchMhs.nim;
-    } else {
+    if (!mhs && req.user?.email) {
+      const { data: fetchMhs } = await supabase
+        .from("mahasiswa")
+        .select("*")
+        .eq("email", req.user.email)
+        .maybeSingle();
+      if (fetchMhs) mhs = fetchMhs;
+    }
+
+    if (!mhs && studentNim) {
       const { data: fetchMhs } = await supabase
         .from("mahasiswa")
         .select("*")
         .eq("nim", studentNim)
         .maybeSingle();
-      mhs = fetchMhs;
+      if (fetchMhs) mhs = fetchMhs;
     }
 
-    // Step 1: Fetch Pengajuan ID Magang FIK
-    const { data: listStep1 } = await supabase
-      .from("pengajuan_magang")
-      .select("*")
-      .eq("nim", studentNim)
-      .order("created_at", { ascending: false });
+    const targetNim = mhs ? mhs.nim : (req.user?.nim || studentNim);
 
-    const step1Data = (listStep1 && listStep1.length > 0) ? listStep1[0] : null;
+    // Step 1: Fetch Pengajuan ID Magang FIK
+    let listStep1 = [];
+    if (targetNim) {
+      const { data } = await supabase
+        .from("pengajuan_magang")
+        .select("*")
+        .eq("nim", targetNim)
+        .order("created_at", { ascending: false });
+      if (data && data.length > 0) listStep1 = data;
+    }
+
+    if (listStep1.length === 0 && targetNim) {
+      const memStep1 = memoryStep1Store.filter((s) => String(s.nim || "") === String(targetNim) || (mhs && String(s.nim || "") === String(mhs.nim)));
+      if (memStep1.length > 0) listStep1 = memStep1;
+    }
+
+    const step1Data = listStep1.length > 0 ? listStep1[0] : null;
     const now = new Date();
     let step1Formatted = null;
 
@@ -614,49 +417,66 @@ router.get("/all-steps", authenticateToken, async (req, res, next) => {
 
     // Step 2: Fetch Proposal Magang
     let step2Data = null;
-    const { data: dbProposals } = await supabase
-      .from("proposal_magang")
-      .select("*")
-      .eq("nim", studentNim)
-      .order("created_at", { ascending: false });
+    if (targetNim) {
+      const { data: dbProposals } = await supabase
+        .from("proposal_magang")
+        .select("*")
+        .eq("nim", targetNim)
+        .order("created_at", { ascending: false });
+      if (dbProposals && dbProposals.length > 0) {
+        step2Data = dbProposals[0];
+      }
+    }
 
-    if (dbProposals && dbProposals.length > 0) {
-      step2Data = dbProposals[0];
-    } else {
-      const memoryProp = memoryProposalStore.find((p) => p.nim === studentNim || (mhs && p.nim === mhs.nim));
+    if (!step2Data && targetNim) {
+      const memoryProp = memoryProposalStore.find((p) => String(p.nim || "") === String(targetNim) || (mhs && String(p.nim || "") === String(mhs.nim)));
       if (memoryProp) step2Data = memoryProp;
     }
 
-    // Step 3: Fetch Surat Pengantar Magang
+    // Step 3: Fetch Surat Pengantar Magang FIK (Check both table names for compatibility)
     let step3Data = null;
-    const { data: dbSurats } = await supabase
-      .from("surat_pengantar_magang")
-      .select("*")
-      .eq("nim", studentNim)
-      .order("created_at", { ascending: false });
+    if (targetNim) {
+      let { data: dbSurats } = await supabase
+        .from("pengajuan_surat_pengantar")
+        .select("*")
+        .eq("nim", targetNim)
+        .order("created_at", { ascending: false });
 
-    if (dbSurats && dbSurats.length > 0) {
-      step3Data = dbSurats[0];
-    } else {
-      const memorySurat = memorySuratStore.find((s) => s.nim === studentNim || (mhs && s.email_mahasiswa === mhs.email));
+      if (!dbSurats || dbSurats.length === 0) {
+        const { data: dbSuratsAlt } = await supabase
+          .from("surat_pengantar_magang")
+          .select("*")
+          .eq("nim", targetNim)
+          .order("created_at", { ascending: false });
+        if (dbSuratsAlt && dbSuratsAlt.length > 0) dbSurats = dbSuratsAlt;
+      }
+
+      if (dbSurats && dbSurats.length > 0) {
+        step3Data = dbSurats[0];
+      }
+    }
+
+    if (!step3Data && targetNim) {
+      const memorySurat = memorySuratStore.find((s) => String(s.nim || "") === String(targetNim) || (mhs && String(s.email_mahasiswa || "") === String(mhs.email)));
       if (memorySurat) step3Data = memorySurat;
     }
-    let step3Formatted = null;
 
+    let step3Formatted = null;
     if (step3Data) {
       const parsedDate = step3Data.created_at ? new Date(step3Data.created_at) : null;
       const createdAt = parsedDate && !isNaN(parsedDate.getTime()) ? parsedDate : now;
       const ageMs = Math.max(0, now.getTime() - createdAt.getTime());
       const rawStatus = step3Data.status_surat || "Diproses Fakultas";
-      const isApproved = rawStatus === "Disetujui" || ageMs >= AUTO_ACC_DELAY_MS;
+      const isApproved = rawStatus === "Disetujui" || rawStatus === "Selesai" || ageMs >= AUTO_ACC_DELAY_MS;
       const officialId = step3Data.id_magang_fakultas || step1Formatted?.id_magang_fakultas || "FIK6199364";
-      const pdfUrl = step3Data.surat_pengantar_url || `https://fik.amikom.ac.id/surat/SURAT-PENGANTAR-${officialId}.pdf`;
+      const pdfUrl = step3Data.surat_pengantar_url || step3Data.file_surat_pengantar_pdf || `https://fik.amikom.ac.id/surat/SURAT-PENGANTAR-${officialId}.pdf`;
 
       step3Formatted = {
+        ...step3Data,
         email: step3Data.email_mahasiswa || mhs?.email,
         id_magang: officialId,
         tanggal_mulai_magang: step3Data.tanggal_mulai || step2Data?.tanggal_mulai || "2026-08-01",
-        tanggal_berakhir_magang: step3Data.tanggal_selesai || step2Data?.tanggal_selesai || "2027-01-31",
+        tanggal_berakhir_magang: step3Data.tanggal_selesai || step3Data.tanggal_berakhir || step2Data?.tanggal_selesai || "2027-01-31",
         periode_magang: step3Data.periode_magang || "6 Bulan",
         status_surat: isApproved ? "Disetujui" : "Diproses Fakultas",
         surat_pengantar_url: isApproved ? pdfUrl : null,
@@ -665,16 +485,19 @@ router.get("/all-steps", authenticateToken, async (req, res, next) => {
 
     // Step 4: Fetch Pengajuan DPL Magang
     let step4Data = null;
-    const { data: dbDpls } = await supabase
-      .from("pengajuan_dpl")
-      .select("*")
-      .eq("nim", studentNim)
-      .order("created_at", { ascending: false });
+    if (targetNim) {
+      const { data: dbDpls } = await supabase
+        .from("pengajuan_dpl")
+        .select("*")
+        .eq("nim", targetNim)
+        .order("created_at", { ascending: false });
+      if (dbDpls && dbDpls.length > 0) {
+        step4Data = dbDpls[0];
+      }
+    }
 
-    if (dbDpls && dbDpls.length > 0) {
-      step4Data = dbDpls[0];
-    } else {
-      const memoryDpl = memoryDplStore.find((d) => d.nim === studentNim || (mhs && d.nim === mhs.nim));
+    if (!step4Data && targetNim) {
+      const memoryDpl = memoryDplStore.find((d) => String(d.nim || "") === String(targetNim) || (mhs && String(d.nim || "") === String(mhs.nim)));
       if (memoryDpl) step4Data = memoryDpl;
     }
 
@@ -684,7 +507,7 @@ router.get("/all-steps", authenticateToken, async (req, res, next) => {
       const createdAt = parsedDate && !isNaN(parsedDate.getTime()) ? parsedDate : now;
       const ageMs = Math.max(0, now.getTime() - createdAt.getTime());
       const rawStatus = step4Data.status_pengajuan || "Diproses Fakultas";
-      const isApproved = rawStatus === "Disetujui" || ageMs >= AUTO_ACC_DELAY_MS;
+      const isApproved = rawStatus === "Disetujui" || rawStatus === "SK DPL Diterbitkan" || ageMs >= AUTO_ACC_DELAY_MS;
       const officialId = step4Data.id_magang_fakultas || step1Formatted?.id_magang_fakultas || "FIK6199364";
       const skUrl = step4Data.sk_dpl_url || `https://fik.amikom.ac.id/surat/SK-DPL-${officialId}.pdf`;
 
@@ -693,9 +516,85 @@ router.get("/all-steps", authenticateToken, async (req, res, next) => {
         id_magang: officialId,
         status_pengajuan: isApproved ? "Disetujui" : "Diproses Fakultas",
         nidn_dpl: isApproved ? (step4Data.nidn_dpl || "0512038901") : null,
-        nama_dpl: isApproved ? (step4Data.nama_dpl || "Drs. Kusrini, M.Kom.") : "Proses Plotting DPL",
+        nama_dpl: isApproved ? (step4Data.nama_dpl || "Dr. Indah Susanti, M.Kom") : "Proses Plotting DPL",
         sk_dpl_url: isApproved ? skUrl : null,
       };
+    }
+
+    // Step 5: Fetch Konversi SKS Mata Kuliah
+    let step5Data = null;
+    if (targetNim) {
+      const { data: dbHeader } = await supabase
+        .from("pengajuan_konversi_matkul")
+        .select("*")
+        .eq("nim", targetNim)
+        .order("created_at", { ascending: false });
+
+      if (dbHeader && dbHeader.length > 0) {
+        const h = dbHeader[0];
+        const { data: dbDetails } = await supabase
+          .from("item_konversi_detail")
+          .select("*")
+          .eq("id_konversi", h.id_konversi);
+
+        step5Data = {
+          id_konversi: h.id_konversi,
+          total_sks: h.total_sks || 20,
+          mode_input: h.mode_input || "AI_RECOMMENDATION",
+          status_konversi: h.status_konversi || "Menunggu Review DPL",
+          catatan_dosen: h.catatan_dosen || null,
+          items: (dbDetails && dbDetails.length > 0) ? dbDetails.map((item) => ({
+            kode_mk: item.kode_mk,
+            nama_mk: item.nama_mk || item.kode_mk,
+            sks: item.sks || 4,
+            objective: item.objective || item.modul_industri,
+            nilai_angka: item.nilai_angka,
+            nilai_huruf: item.nilai_huruf,
+          })) : [],
+          created_at: h.created_at,
+        };
+      } else if (step1Data && step1Data.id_pengajuan) {
+        const { data: dbItems } = await supabase
+          .from("item_konversi_mk")
+          .select("*")
+          .eq("id_pengajuan", step1Data.id_pengajuan);
+
+        if (dbItems && dbItems.length > 0) {
+          step5Data = {
+            id_konversi: step1Data.id_pengajuan,
+            total_sks: dbItems.length * 4,
+            mode_input: "AI_RECOMMENDATION",
+            status_konversi: dbItems[0]?.status_step || "Menunggu Review DPL",
+            items: dbItems.map((item) => ({
+              kode_mk: item.kode_mk,
+              nama_mk: item.kode_mk,
+              sks: 4,
+              objective: item.modul_industri,
+              nilai_angka: item.nilai_akhir_angka,
+              nilai_huruf: item.nilai_akhir_huruf,
+            })),
+          };
+        }
+      }
+    }
+
+    if (!step5Data && targetNim) {
+      const memoryK = memoryKonversiStore.find((k) => String(k.nim || "") === String(targetNim) || (mhs && String(k.nim || "") === String(mhs.nim)));
+      if (memoryK) step5Data = memoryK;
+    }
+
+    // Step 6: Fetch Surat Akhir Magang & Terima Kasih
+    let step6Data = null;
+    if (targetNim) {
+      const { data: dbSuratAkhir } = await supabase
+        .from("surat_akhir_magang")
+        .select("*")
+        .eq("nim", targetNim)
+        .order("created_at", { ascending: false });
+
+      if (dbSuratAkhir && dbSuratAkhir.length > 0) {
+        step6Data = dbSuratAkhir[0];
+      }
     }
 
     // Build unified table rows array for Frontend Dashboard Table (matching screenshot)
@@ -733,13 +632,13 @@ router.get("/all-steps", authenticateToken, async (req, res, next) => {
 
     if (step3Formatted) {
       riwayatPengajuan.push({
-        id: `step3-${step3Data?.id_surat || 1}`,
+        id: `step3-${step3Formatted.id_surat || step3Formatted.id_surat_pengantar || 1}`,
         step: 3,
         jenis_pengajuan: "Pengajuan Surat Pengantar Magang FIK",
         sub_info: `Periode: ${step3Formatted.periode_magang || "6 Bulan"}`,
         nama_instansi: step1Formatted?.nama_instansi || step2Data?.nama_instansi || "-",
         kepada_yth: `ID Magang: ${step3Formatted.id_magang}`,
-        tanggal_pengajuan: formatIndonesianDate(step3Data?.created_at || now),
+        tanggal_pengajuan: formatIndonesianDate(step3Formatted.created_at || now),
         status: (step3Formatted.status_surat || "DIPROSES FAKULTAS").toUpperCase(),
         surat_pengantar_url: step3Formatted.surat_pengantar_url,
       });
@@ -750,10 +649,10 @@ router.get("/all-steps", authenticateToken, async (req, res, next) => {
         id: `step4-${step4Formatted.id_pengajuan_dpl || 1}`,
         step: 4,
         jenis_pengajuan: "Pengajuan Dosen Pembimbing",
-        sub_info: `SKS Ditempuh: ${step4Formatted.sks_ditempuh} SKS`,
+        sub_info: `SKS Ditempuh: ${step4Formatted.sks_ditempuh || 110} SKS`,
         nama_instansi: `DPL: ${step4Formatted.nama_dpl}`,
         kepada_yth: `ID Magang: ${step4Formatted.id_magang}`,
-        tanggal_pengajuan: formatIndonesianDate(step4Data?.created_at || now),
+        tanggal_pengajuan: formatIndonesianDate(step4Formatted.created_at || now),
         status: (step4Formatted.status_pengajuan || "DIPROSES FAKULTAS").toUpperCase(),
         sk_dpl_url: step4Formatted.sk_dpl_url,
         bukti_diterima_magang: step4Formatted.bukti_diterima_magang,
@@ -761,42 +660,10 @@ router.get("/all-steps", authenticateToken, async (req, res, next) => {
       });
     }
 
-    // Step 5: Fetch Konversi SKS Mata Kuliah
-    let step5Data = null;
-
-    if (step1Data && step1Data.id_pengajuan) {
-      const { data: dbItems } = await supabase
-        .from("item_konversi_mk")
-        .select("*")
-        .eq("id_pengajuan", step1Data.id_pengajuan);
-
-      if (dbItems && dbItems.length > 0) {
-        step5Data = {
-          id_konversi: step1Data.id_pengajuan,
-          total_sks: dbItems.length * 4,
-          mode_input: "AI_RECOMMENDATION",
-          status_konversi: dbItems[0]?.status_step || "Menunggu Review DPL",
-          items: dbItems.map((item) => ({
-            kode_mk: item.kode_mk,
-            nama_mk: item.kode_mk,
-            sks: 4,
-            objective: item.modul_industri,
-            nilai_angka: item.nilai_akhir_angka,
-            nilai_huruf: item.nilai_akhir_huruf,
-          })),
-        };
-      }
-    }
-
-    if (!step5Data) {
-      const memoryK = memoryKonversiStore.find((k) => k.nim === studentNim || (mhs && k.nim === mhs.nim));
-      if (memoryK) step5Data = memoryK;
-    }
-
     if (step5Data) {
-      const matkulNames = (step5Data.items && Array.isArray(step5Data.items))
+      const matkulNames = (step5Data.items && Array.isArray(step5Data.items) && step5Data.items.length > 0)
         ? step5Data.items.map((i) => i.nama_mk).join(", ")
-        : "Matkul Konversi";
+        : "Konversi 20 SKS";
 
       riwayatPengajuan.push({
         id: `step5-${step5Data.id_konversi || 1}`,
@@ -804,23 +671,39 @@ router.get("/all-steps", authenticateToken, async (req, res, next) => {
         jenis_pengajuan: "Pengajuan Konversi",
         sub_info: `Mode: ${step5Data.mode_input === "AI_RECOMMENDATION" ? "Rekomendasi AI" : "Manual"}`,
         nama_instansi: `Mata Kuliah: ${matkulNames}`,
-        kepada_yth: `Total: ${step5Data.total_sks || 12} SKS`,
+        kepada_yth: `Total: ${step5Data.total_sks || 20} SKS`,
         tanggal_pengajuan: formatIndonesianDate(step5Data.created_at || now),
         status: (step5Data.status_konversi || "MENUNGGU REVIEW DPL").toUpperCase(),
+        catatan_dosen: step5Data.catatan_dosen,
         items: step5Data.items || [],
+      });
+    }
+
+    if (step6Data) {
+      riwayatPengajuan.push({
+        id: `step6-${step6Data.id_surat_akhir || 1}`,
+        step: 6,
+        jenis_pengajuan: "Surat Akhir & Ucapan Terima Kasih FIK",
+        sub_info: `Status Mitra: ${step6Data.status_penilaian_mitra || "Sudah Dinilai Mitra"}`,
+        nama_instansi: `Nilai Mitra: ${step6Data.nilai_mitra_angka || 95} (${step6Data.nilai_mitra_huruf || "A"})`,
+        kepada_yth: `Catatan: ${step6Data.catatan_mitra || "-"}`,
+        tanggal_pengajuan: formatIndonesianDate(step6Data.created_at || now),
+        status: (step6Data.status_penilaian_mitra || "SUDAH DINILAI MITRA").toUpperCase(),
+        surat_terima_kasih_url: step6Data.surat_terima_kasih_url,
+        sertifikat_magang_url: step6Data.sertifikat_magang_url,
       });
     }
 
     let currentStep = 1;
     if (step1Formatted && step1Formatted.status_surat_fakultas === "Disetujui") currentStep = 2;
     if (step2Data) currentStep = 3;
-    if (step3Formatted && step3Formatted.status_surat === "Disetujui") currentStep = 4;
-    if (step4Formatted) currentStep = 5;
+    if (step3Formatted && (step3Formatted.status_surat === "Disetujui" || step3Formatted.status_surat === "Selesai")) currentStep = 4;
+    if (step4Formatted && (step4Formatted.status_pengajuan === "Disetujui" || step4Formatted.status_pengajuan === "SK DPL Diterbitkan")) currentStep = 5;
     if (step5Data) currentStep = 6;
 
     res.json({
       status: 200,
-      message: "Data pengajuan magang Step 1, 2, dan 3 berhasil diambil",
+      message: "Data pengajuan magang seluruh tahapan berhasil diambil",
       data: {
         mahasiswa: mhs ? {
           nama: mhs.nama,
