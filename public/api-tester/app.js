@@ -12,6 +12,7 @@ const endpointCatalog = [
   ["Dashboard DPL", "POST", "/api/v1/dosen/konversi/revisi", "8. Shortcut DPL Revisi Konversi (Catatan Wajib)", { id_item_konversi: 101, nim: "21.11.4001", catatan_dosen: "Catatan perbaikan revisi DPL" }],
   ["Dashboard DPL", "GET", "/api/v1/konversi-matkul/dpl/list", "9. Legacy Daftar Usulan Konversi Masuk DPL", {}],
   ["Dashboard DPL", "POST", "/api/v1/konversi-matkul/dpl/review", "10. Legacy Review DPL (ACC / Revisi)", { id_item_konversi: 1, action: "ACC", catatan_dosen: "Mata kuliah & objective CPMK disetujui DPL" }],
+  ["Dashboard DPL", "GET", "/api/v1/dosen/export/mahasiswa?format=excel", "11. 📊 Export Excel: Data Mahasiswa Bimbingan DPL", {}],
 
   // 🏢 KATEGORI KHUSUS: DASHBOARD MITRA INDUSTRI
   ["Dashboard Mitra", "POST", "/api/v1/auth/login", "1. Login Mitra (Rian Hidayat - PT GoTo)", { identifier: "rian.hidayat@goto.com", password: "Mtr#1234" }],
@@ -33,6 +34,9 @@ const endpointCatalog = [
   ["Dashboard Admin Kaprodi", "GET", "/api/v1/admin/mata-kuliah", "9. Master Data: Katalog Mata Kuliah & CPMK", {}],
   ["Dashboard Admin Kaprodi", "POST", "/api/v1/admin/mata-kuliah", "10. Master Data: Tambah Mata Kuliah & Deskripsi CPMK Baru", { kode_mk: "ST120", nama_mk: "Cloud & Microservices Architecture", sks: 4, semester: 6, cpmk: "CPMK20-Mahasiswa mampu merancang arsitektur cloud & microservices skala besar", kategori: "Wajib Prodi" }],
   ["Dashboard Admin Kaprodi", "GET", "/api/v1/admin/cpl-cpmk", "11. Master Data: Daftar CPL & CPMK", {}],
+  ["Dashboard Admin Kaprodi", "GET", "/api/v1/admin/export/mahasiswa?format=excel", "12. 📊 Export Excel: Data Mahasiswa Magang Semester Ini", {}],
+  ["Dashboard Admin Kaprodi", "GET", "/api/v1/admin/export/dosen?format=excel", "13. 📊 Export Excel: Data Dosen Pembimbing (DPL)", {}],
+  ["Dashboard Admin Kaprodi", "GET", "/api/v1/admin/export/mitra?format=excel", "14. 📊 Export Excel: Data Mitra Industri MBKM", {}],
 
   // 👨‍🎓 KATEGORI KHUSUS: DASHBOARD MAHASISWA (FULL UI MATCH)
   ["Dashboard Mahasiswa", "POST", "/api/v1/auth/login", "1. Login Mahasiswa Complete (NIM 24.11.6666)", { identifier: "24.11.6666", password: "12345678" }],

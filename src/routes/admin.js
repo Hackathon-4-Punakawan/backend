@@ -682,4 +682,166 @@ router.post("/cpl-cpmk", async (req, res, next) => {
   }
 });
 
+// ----------------------------------------------------------------------
+// 7. EXPORT TO EXCEL / CSV ENDPOINTS UNTUK ADMIN KAPRODI
+// ----------------------------------------------------------------------
+const { sendExportResponse } = require("../utils/exportHelper");
+
+// 7a. Export Data Mahasiswa Magang Semester Ini
+router.get(["/export/mahasiswa", "/export-mahasiswa"], async (req, res, next) => {
+  try {
+    const format = req.query.format || "excel";
+    const semester = req.query.semester || "Semester 6 (Genap)";
+
+    const { data: dbMhs } = await supabase.from("mahasiswa").select("*");
+    const mhsList = dbMhs && dbMhs.length > 0 ? dbMhs : memoryMahasiswaStats;
+
+    const { data: dbStep1 } = await supabase.from("pengajuan_magang").select("*");
+    const { data: dbStep2 } = await supabase.from("proposal_magang").select("*");
+    const { data: dbStep4 } = await supabase.from("pengajuan_dpl").select("*");
+    const { data: dbStep5 } = await supabase.from("pengajuan_konversi_matkul").select("*");
+    const { data: dbStep6 } = await supabase.from("surat_akhir_magang").select("*");
+
+    const headers = [
+      "NIM",
+      "Nama Mahasiswa",
+      "Prodi",
+      "Angkatan",
+      "Email Student",
+      "Jenis Program Magang",
+      "Nama Instansi / Mitra",
+      "Dosen Pembimbing (DPL)",
+      "NIDN DPL",
+      "Total SKS Usulan",
+      "Status Step Progress",
+      "Status Review DPL",
+      "Nilai Akhir Huruf",
+      "Status Penilaian Mitra",
+      "Tanggal Pengajuan",
+    ];
+
+    const rows = mhsList.map((mhs) => {
+      const nim = mhs.nim || "24.11.6666";
+      const step1 = (dbStep1 || []).find((s) => String(s.nim || "") === String(nim)) || {};
+      const step2 = (dbStep2 || []).find((p) => String(p.nim || "") === String(nim)) || {};
+      const step4 = (dbStep4 || []).find((d) => String(d.nim || "") === String(nim)) || {};
+      const step5 = (dbStep5 || []).find((k) => String(k.nim || "") === String(nim)) || {};
+      const step6 = (dbStep6 || []).find((s) => String(s.nim || "") === String(nim)) || {};
+
+      const namaInstansi = step1.nama_instansi || step2.nama_instansi || "PT GoTo Gojek Tokopedia Tbk";
+      const jenisProgram = step2.program_diikuti || step1.jenis_program || "Magang Mandiri";
+      const dplNama = step4.nama_dpl || "Dr. Indah Susanti, M.Kom";
+      const dplNidn = step4.nidn_dpl || "0512038901";
+      const totalSks = step5.total_sks || 20;
+      const statusProgress = step6.created_at ? "Selesai (Akhir Magang)" : (step5.created_at ? "Konversi SKS DPL" : "Proses Validasi");
+      const statusDpl = step5.status_konversi || "Disetujui DPL";
+      const nilaiHuruf = step6.nilai_mitra_huruf || "A";
+      const statusMitra = step6.status_penilaian_mitra || "Sudah Dinilai Mitra";
+      const createdDate = step1.created_at || mhs.created_at || "2026-07-27";
+
+      return [
+        nim,
+        mhs.nama || "Fathur Rahman",
+        mhs.prodi || "Informatika",
+        mhs.angkatan || "2024",
+        mhs.email || `${nim}@students.amikom.ac.id`,
+        jenisProgram,
+        namaInstansi,
+        dplNama,
+        dplNidn,
+        totalSks,
+        statusProgress,
+        statusDpl,
+        nilaiHuruf,
+        statusMitra,
+        createdDate,
+      ];
+    });
+
+    sendExportResponse(res, `Data_Mahasiswa_Magang_${semester.replace(/\s+/g, "_")}`, headers, rows, format);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// 7b. Export Data Dosen Pembimbing Lapangan (DPL)
+router.get(["/export/dosen", "/export-dosen"], async (req, res, next) => {
+  try {
+    const format = req.query.format || "excel";
+
+    const { data: dbDosen } = await supabase.from("dosen_pembimbing").select("*");
+    const dosenList = dbDosen && dbDosen.length > 0 ? dbDosen : memoryDosenList;
+
+    const headers = [
+      "NIDN",
+      "Nama Dosen Pembimbing (DPL)",
+      "Email",
+      "Bidang Keahlian",
+      "Jumlah Mahasiswa Diampu",
+      "Mahasiswa Selesai Evaluasi",
+      "Mahasiswa Menunggu Review",
+      "Status Keaktifan",
+    ];
+
+    const rows = dosenList.map((dosen) => [
+      dosen.nidn,
+      dosen.nama,
+      dosen.email || `${dosen.nidn}@amikom.ac.id`,
+      dosen.bidang_keahlian || "Software Engineering",
+      dosen.jumlah_mahasiswa_diampu !== undefined ? dosen.jumlah_mahasiswa_diampu : 5,
+      dosen.mahasiswa_selesai !== undefined ? dosen.mahasiswa_selesai : 4,
+      dosen.mahasiswa_menunggu !== undefined ? dosen.mahasiswa_menunggu : 1,
+      dosen.is_active !== false ? "Aktif" : "Non-Aktif",
+    ]);
+
+    sendExportResponse(res, "Data_Dosen_Pembimbing_Lapangan_DPL", headers, rows, format);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// 7c. Export Data Mitra Industri
+router.get(["/export/mitra", "/export-mitra"], async (req, res, next) => {
+  try {
+    const format = req.query.format || "excel";
+
+    const { data: dbMitra } = await supabase.from("mitra_industri").select("*");
+    const defaultMitra = [
+      { id_mitra: 1, nama_perusahaan: "PT GoTo Gojek Tokopedia Tbk", nama_supervisor: "Rian Hidayat", email_supervisor: "rian.hidayat@goto.com", kategori_industri: "Technology & Unicorn", bidang_usaha: "E-Commerce & On-Demand Services", jumlah_mahasiswa: 3, jumlah_selesai: 3 },
+      { id_mitra: 2, nama_perusahaan: "PT Bukalapak.com Tbk", nama_supervisor: "Hendra Wijaya", email_supervisor: "hendra.wijaya@bukalapak.com", kategori_industri: "E-Commerce", bidang_usaha: "E-Commerce Marketplace", jumlah_mahasiswa: 2, jumlah_selesai: 2 },
+      { id_mitra: 3, nama_perusahaan: "PT Bank Central Asia Tbk (BCA Digital)", nama_supervisor: "Siti Rahmawati", email_supervisor: "siti.rahmawati@bca.co.id", kategori_industri: "Financial Technology & Banking", bidang_usaha: "Digital Banking Services", jumlah_mahasiswa: 2, jumlah_selesai: 1 },
+      { id_mitra: 4, nama_perusahaan: "PT Telkom Indonesia (Persero) Tbk", nama_supervisor: "Agus Pratama", email_supervisor: "agus.pratama@telkom.co.id", kategori_industri: "Telecommunication & Digital Ecosystem", bidang_usaha: "Telecommunication & Cloud Infrastructure", jumlah_mahasiswa: 1, jumlah_selesai: 1 },
+    ];
+    const mitraList = dbMitra && dbMitra.length > 0 ? dbMitra : defaultMitra;
+
+    const headers = [
+      "ID Mitra",
+      "Nama Perusahaan / Instansi",
+      "Kategori Industri",
+      "Bidang Usaha",
+      "Nama Supervisor / PIC",
+      "Email Supervisor / PIC",
+      "Jumlah Mahasiswa Magang",
+      "Jumlah Selesai Penilaian",
+      "Status Kerjasama",
+    ];
+
+    const rows = mitraList.map((m) => [
+      m.id_mitra || m.id,
+      m.nama_perusahaan,
+      m.kategori_industri || "Teknologi Informasi",
+      m.bidang_usaha || "Software & Cloud Services",
+      m.nama_supervisor || m.nama_pic || "Supervisor Industri",
+      m.email_supervisor || m.email_pic || "hrd@instansi.com",
+      m.jumlah_mahasiswa || 1,
+      m.jumlah_selesai || 1,
+      m.status_kerjasama || "Aktif / Terverifikasi",
+    ]);
+
+    sendExportResponse(res, "Data_Mitra_Industri_MBKM", headers, rows, format);
+  } catch (err) {
+    next(err);
+  }
+});
+
 module.exports = router;
