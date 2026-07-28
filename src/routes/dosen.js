@@ -439,6 +439,7 @@ router.get("/mahasiswa/:nim", authenticateToken, requireRole(["DPL", "ADMIN_PROD
     const { data: dbItemsMk } = await supabase
       .from("item_konversi_mk")
       .select("*")
+      .eq("nim", nimParam)
       .order("id_item_konversi", { ascending: true });
 
     // Format Mahasiswa Detail Payload
