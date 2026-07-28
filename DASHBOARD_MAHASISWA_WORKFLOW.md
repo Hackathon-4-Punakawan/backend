@@ -16,6 +16,17 @@ GET /api/v1/dashboard/mahasiswa
 
 ---
 
+## ⚡ Fitur Utama & Resolusi User Dinamis
+
+1. **Dynamic JWT User Session**:
+   - Endpoint secara otomatis membaca token JWT milik **user yang sedang login** (`req.user.nama`, `req.user.email`, `req.user.nim`).
+   - Apabila user baru mendaftar (misal `NIM 24.11.5556` / `Daus sedap` / `rebelzi8@gmail.com`), seluruh respons profil header, email surat akhir, dan status konversi secara dinamis menyesuaikan data identitas user aktif tersebut tanpa hardcode static fallback.
+2. **Multi-Source Fetching & Default Catalog Fallback**:
+   - Membaca usulan mata kuliah konversi dari 4 sumber bertingkat: Supabase `item_konversi_detail`, Supabase `item_konversi_mk`, `memoryKonversiStore`, dan fallback **5 Mata Kuliah Katalog Informatika Amikom**.
+   - Menjamin `progress_konversi_mk.items` dan `status_konversi_table.rows` **selalu terisi dan tidak pernah kosong (`[]`)**.
+
+---
+
 ## 🎨 Komponen UI Dashboard & Struktur Data JSON
 
 API ini mengembalikan seluruh data yang dibutuhkan oleh komponen UI Dashboard Mahasiswa dalam 1 kali panggilan request (*single-call aggregate endpoint*):
