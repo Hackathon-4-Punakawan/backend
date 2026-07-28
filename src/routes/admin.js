@@ -595,7 +595,13 @@ router.put("/mitra/:id", async (req, res, next) => {
 router.get("/mata-kuliah", async (req, res, next) => {
   try {
     const { data: dbMK } = await supabase.from("mata_kuliah").select("*").order("kode_mk", { ascending: true });
-    const list = dbMK && dbMK.length > 0 ? dbMK : memoryMataKuliahCatalog;
+    const rawList = dbMK && dbMK.length > 0 ? dbMK : memoryMataKuliahCatalog;
+
+    const list = rawList.map((m) => ({
+      ...m,
+      cpmk: getCpmkDescription(m),
+      deskripsi_cpmk: getCpmkDescription(m),
+    }));
 
     res.json({
       status: 200,
@@ -929,6 +935,46 @@ router.get(["/export/mitra", "/export-mitra"], async (req, res, next) => {
   }
 });
 
+const OFFICIAL_CPMK_MAP = {
+  'IF101': 'CPMK01-Mahasiswa mampu merancang dan mengimplementasikan aplikasi web tingkat lanjut dengan arsitektur modern',
+  'IF102': 'CPMK02-Mahasiswa mampu menerapkan metode rekayasa perangkat lunak, SDLC, dan pengujian sistem',
+  'IF103': 'CPMK03-Mahasiswa mampu mengelola proyek TI, estimasi resources, risiko, dan manajemen tim Agile',
+  'IF104': 'CPMK04-Mahasiswa mampu menerapkan konsep kecerdasan buatan, machine learning, dan pemrosesan data',
+  'IF105': 'CPMK05-Mahasiswa mampu mengaplikasikan ilmu komputer secara nyata dalam lingkungan kerja industri magang',
+  'ST044': 'CPMK06-Mahasiswa mampu memecahkan persamaan matematika komputasional dengan metode numerik',
+  'ST050': 'CPMK07-Mahasiswa mampu merumuskan strategi bisnis IT dan alokasi sumber daya teknologi informasi',
+  'ST055': 'CPMK08-Mahasiswa mampu merancang arsitektur REST API, microservices, dan deployment cloud server',
+  'ST084': 'CPMK09-Mahasiswa mampu merancang web app responsif berbasis HTML, CSS, JavaScript, dan backend API',
+  'ST087': 'CPMK10-Mahasiswa mampu mengelola aset, SDM IT, dan tata kelola teknologi informasi organisasi',
+  'ST091': 'CPMK11-Mahasiswa mampu merekayasa perangkat lunak, analisis proses bisnis, dan diagram UML',
+  'ST108': 'CPMK12-Mahasiswa mampu membangun platform e-commerce, sistem pembayaran digital, dan keamanan transaksi',
+  'ST116': 'CPMK13-Mahasiswa mampu merancang skema ERD, otomatisasi relasional database, dan prosedur SQL',
+  'ST120': 'CPMK14-Mahasiswa mampu menyusun dokumen ilmiah, naskah akademik, dan komunikasi profesional',
+  'ST132': 'CPMK15-Mahasiswa mampu mengonfigurasi web server, DNS, protokol HTTP/S, dan keamanan infrastruktur internet',
+  'ST143': 'CPMK16-Mahasiswa mampu merancang topologi jaringan komputer, routing, switching, dan VLAN enterprise',
+  'ST150': 'CPMK17-Mahasiswa mampu memimpin tim pengembang, negosiasi manajemen, dan etika kepemimpinan IT',
+  'ST153': 'CPMK18-Mahasiswa mampu memproses data berskala masif (Big Data), pipeline Hadoop/Spark, dan prediktif analitik',
+  'ST154': 'CPMK19-Mahasiswa mampu mengintegrasikan perangkat embedded sensor, IoT gateway, dan komunikasi nirkabel',
+  'ST155': 'CPMK20-Mahasiswa mampu memvalidasi model bisnis digital, Monetisasi SaaS, dan analisis pasar startup',
+  'ST163': 'CPMK21-Mahasiswa mampu membangun gerbang pembayaran payment gateway, e-wallet, dan enkripsi finansial',
+  'ST164': 'CPMK22-Mahasiswa mampu mengimplementasikan deep learning, neural network, dan computer vision',
+  'ST165': 'CPMK23-Mahasiswa mampu menyelesaikan proyek software skala industri dari kebutuhan user hingga staging',
+  'ST166': 'CPMK24-Mahasiswa mampu merekayasa mekanika game, logika game engine, dan pengalaman pengguna interactive',
+  'ST167': 'CPMK25-Mahasiswa mampu menerapkan teknik data mining, clustering, klasterisasi, dan ekstraksi pola data',
+  'ST168': 'CPMK26-Mahasiswa mampu mengolah lanskap big data dan algoritma data mining tingkat lanjut',
+  'ST170': 'CPMK27-Mahasiswa mampu menguasai arsitektur sistem kompleks, refactoring code, dan CI/CD pipeline',
+  'ST173': 'CPMK28-Mahasiswa mampu memproduksi media interaktif multimedia, animasi 2D/3D, dan desain UI/UX',
+  'ST175': 'CPMK29-Mahasiswa mampu mempresentasikan produk IT, negosiasi klien, dan resolusi konflik',
+  'ST178': 'CPMK30-Mahasiswa mampu merancang teknologi Mixed Reality (AR/VR), spasial 3D, dan lingkungan imersif'
+};
+
+function getCpmkDescription(m) {
+  if (m.cpmk && !m.cpmk.startsWith('CPMK-Matkul Informatika') && m.cpmk.trim().length > 10) return m.cpmk;
+  if (m.deskripsi_cpmk && !m.deskripsi_cpmk.startsWith('CPMK-Matkul Informatika') && m.deskripsi_cpmk.trim().length > 10) return m.deskripsi_cpmk;
+  if (m.deskripsi && !m.deskripsi.startsWith('CPMK-Matkul Informatika') && m.deskripsi.trim().length > 10) return m.deskripsi;
+  return OFFICIAL_CPMK_MAP[m.kode_mk] || `CPMK-${m.kode_mk}: Mahasiswa mampu menguasai kompetensi dasar dan terapan ${m.nama_mk}`;
+}
+
 // 7d. Export Data Katalog Mata Kuliah & CPMK
 router.get(["/export/mata-kuliah", "/export-mata-kuliah"], async (req, res, next) => {
   try {
@@ -951,7 +997,7 @@ router.get(["/export/mata-kuliah", "/export-mata-kuliah"], async (req, res, next
       m.nama_mk,
       m.sks,
       m.semester || 6,
-      m.cpmk || m.deskripsi_cpmk || m.deskripsi || "CPMK-Matkul Informatika",
+      getCpmkDescription(m),
       m.kategori || "Wajib Prodi",
     ]);
 
