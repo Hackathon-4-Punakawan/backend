@@ -3,11 +3,19 @@ const router = express.Router();
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const os = require('os');
 
-// Ensure uploads folder exists
-const uploadsDir = path.join(__dirname, '../../uploads');
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir, { recursive: true });
+// Resolve appropriate uploads directory (use /tmp on serverless environments like Vercel)
+const isServerless = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
+const defaultUploadsDir = path.join(__dirname, '../../uploads');
+const uploadsDir = isServerless ? os.tmpdir() : defaultUploadsDir;
+
+try {
+  if (!fs.existsSync(uploadsDir)) {
+    fs.mkdirSync(uploadsDir, { recursive: true });
+  }
+} catch (err) {
+  console.warn("Uploads directory creation warning:", err.message);
 }
 
 // Multer Storage Setup
