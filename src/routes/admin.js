@@ -292,7 +292,29 @@ router.get("/mahasiswa/:nim", async (req, res, next) => {
 // GET /api/v1/admin/dosen - Lista DPL + Jumlah Bimbingan
 router.get("/dosen", async (req, res, next) => {
   try {
-    const { data: dbDosen } = await supabase.from("dosen_pembimbing").select("*").order("nama", { ascending: true });
+    let { data: dbDosen } = await supabase.from("dosen_pembimbing").select("*").order("nama", { ascending: true });
+    
+    // Auto-seed to Supabase Database if database contains fewer than 10 DPLs
+    if (!dbDosen || dbDosen.length < 10) {
+      const defaultDosenSeeds = [
+        { nidn: '0522108201', nama: 'Andi Sunyoto, M.Kom.', email: 'andi.sunyoto@amikom.ac.id', bidang_keahlian: 'Cloud Infrastructure & Computer Network', is_active: true },
+        { nidn: '0515088502', nama: 'Bambang Kurniawan, M.Eng', email: 'bambang.k@amikom.ac.id', bidang_keahlian: 'Artificial Intelligence & Data Science', is_active: true },
+        { nidn: '0518048601', nama: 'Dharmawan, M.T.', email: 'dharmawan@amikom.ac.id', bidang_keahlian: 'Mobile Programming & Cyber Security', is_active: true },
+        { nidn: '0512038901', nama: 'Dr. Indah Susanti, M.Kom', email: 'indah.susanti@amikom.ac.id', bidang_keahlian: 'Software Engineering & Web Dev', is_active: true },
+        { nidn: '0509077801', nama: 'Drs. Kusrini, M.Kom.', email: 'kusrini@amikom.ac.id', bidang_keahlian: 'Business Intelligence & Data Mining', is_active: true },
+        { nidn: '0511048102', nama: 'Ir. Amiruddin, M.T.', email: 'amiruddin@amikom.ac.id', bidang_keahlian: 'Enterprise Architecture & Governance', is_active: true },
+        { nidn: '0528098301', nama: 'Niken Hendrakusma, M.Kom', email: 'niken.h@amikom.ac.id', bidang_keahlian: 'UI/UX Design & Human Computer Interaction', is_active: true },
+        { nidn: '0503027902', nama: 'Romi Satria Wahono, Ph.D.', email: 'romi.wahono@amikom.ac.id', bidang_keahlian: 'Machine Learning & Software Metrics', is_active: true },
+        { nidn: '0514068703', nama: 'Fajar Masya, M.T.', email: 'fajar.masya@amikom.ac.id', bidang_keahlian: 'Internet of Things & Embedded Systems', is_active: true },
+        { nidn: '0519118401', nama: 'Widodo, M.Kom', email: 'widodo@amikom.ac.id', bidang_keahlian: 'Database Systems & Big Data Architecture', is_active: true },
+        { nidn: '0525128802', nama: 'Yuli Astuti, M.Kom', email: 'yuli.astuti@amikom.ac.id', bidang_keahlian: 'Game Development & Interactive Media', is_active: true }
+      ];
+      const { data: seededDosen } = await supabase.from("dosen_pembimbing").upsert(defaultDosenSeeds, { onConflict: "nidn" }).select("*");
+      if (seededDosen && seededDosen.length > 0) {
+        dbDosen = seededDosen;
+      }
+    }
+
     const { data: dbPlotting } = await supabase.from("pengajuan_dpl").select("nidn_dpl");
 
     const countMap = new Map();
@@ -302,12 +324,18 @@ router.get("/dosen", async (req, res, next) => {
       }
     });
 
-    const rawList = dbDosen || [
-      { nidn: "0512038901", nama: "Dr. Indah Susanti, M.Kom", email: "indah.susanti@amikom.ac.id", is_active: true },
-      { nidn: "0515088502", nama: "Bambang Kurniawan, M.T.", email: "bambang.k@amikom.ac.id", is_active: true },
-      { nidn: "0509077801", nama: "Drs. Kusrini, M.Kom.", email: "kusrini@amikom.ac.id", is_active: true },
-      { nidn: "0522108201", nama: "Andi Sunyoto, M.Kom", email: "andi.sunyoto@amikom.ac.id", is_active: true },
-      { nidn: "0518048601", nama: "Dharmawan, M.T.", email: "dharmawan@amikom.ac.id", is_active: true },
+    const rawList = (dbDosen && dbDosen.length > 0) ? dbDosen : [
+      { nidn: '0522108201', nama: 'Andi Sunyoto, M.Kom.', email: 'andi.sunyoto@amikom.ac.id', bidang_keahlian: 'Cloud Infrastructure & Computer Network', is_active: true },
+      { nidn: '0515088502', nama: 'Bambang Kurniawan, M.Eng', email: 'bambang.k@amikom.ac.id', bidang_keahlian: 'Artificial Intelligence & Data Science', is_active: true },
+      { nidn: '0518048601', nama: 'Dharmawan, M.T.', email: 'dharmawan@amikom.ac.id', bidang_keahlian: 'Mobile Programming & Cyber Security', is_active: true },
+      { nidn: '0512038901', nama: 'Dr. Indah Susanti, M.Kom', email: 'indah.susanti@amikom.ac.id', bidang_keahlian: 'Software Engineering & Web Dev', is_active: true },
+      { nidn: '0509077801', nama: 'Drs. Kusrini, M.Kom.', email: 'kusrini@amikom.ac.id', bidang_keahlian: 'Business Intelligence & Data Mining', is_active: true },
+      { nidn: '0511048102', nama: 'Ir. Amiruddin, M.T.', email: 'amiruddin@amikom.ac.id', bidang_keahlian: 'Enterprise Architecture & Governance', is_active: true },
+      { nidn: '0528098301', nama: 'Niken Hendrakusma, M.Kom', email: 'niken.h@amikom.ac.id', bidang_keahlian: 'UI/UX Design & Human Computer Interaction', is_active: true },
+      { nidn: '0503027902', nama: 'Romi Satria Wahono, Ph.D.', email: 'romi.wahono@amikom.ac.id', bidang_keahlian: 'Machine Learning & Software Metrics', is_active: true },
+      { nidn: '0514068703', nama: 'Fajar Masya, M.T.', email: 'fajar.masya@amikom.ac.id', bidang_keahlian: 'Internet of Things & Embedded Systems', is_active: true },
+      { nidn: '0519118401', nama: 'Widodo, M.Kom', email: 'widodo@amikom.ac.id', bidang_keahlian: 'Database Systems & Big Data Architecture', is_active: true },
+      { nidn: '0525128802', nama: 'Yuli Astuti, M.Kom', email: 'yuli.astuti@amikom.ac.id', bidang_keahlian: 'Game Development & Interactive Media', is_active: true }
     ];
 
     const result = rawList.map((d) => ({
@@ -315,7 +343,7 @@ router.get("/dosen", async (req, res, next) => {
       nama: d.nama,
       email: d.email,
       bidang_keahlian: d.bidang_keahlian || "Software Engineering & Data Science",
-      foto_profile: d.foto_profile || `https://ui-avatars.com/api/?name=${encodeURIComponent(d.nama)}&background=0284c7&color=fff&bold=true`,
+      foto_profile: d.foto_profile || `https://ui-avatars.com/api/?name=${encodeURIComponent(d.nama)}&background=7e22ce&color=fff&bold=true`,
       is_active: d.is_active !== false,
       total_mahasiswa_bimbingan: countMap.get(d.nidn) || 2,
     }));
