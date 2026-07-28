@@ -148,6 +148,11 @@ router.post("/login", async (req, res, next) => {
 
     let targetEmail = identifier.toLowerCase();
 
+    // Alias mapping for old kaprodi email
+    if (targetEmail === "kaprodi.if@amikom.ac.id") {
+      targetEmail = "admin.fik@amikom.ac.id";
+    }
+
     // Check if identifier is NIM
     if (!identifier.includes("@")) {
       const { data: mhs } = await supabase
