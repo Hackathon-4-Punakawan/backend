@@ -1234,4 +1234,14 @@ router.post(["/import/mata-kuliah", "/import-mata-kuliah"], async (req, res, nex
   }
 });
 
+// GET /api/v1/admin/logbook - Monitoring Read-Only Logbook Mahasiswa untuk Admin / Kaprodi / Dekan
+router.get("/logbook", authenticateToken, requireRole(["ADMIN_PRODI", "KAPRODI", "DEKAN", "ADMIN"]), async (req, res, next) => {
+  try {
+    const { getMahasiswaLogbook } = require("./dashboardMahasiswa");
+    return getMahasiswaLogbook(req, res, next);
+  } catch (err) {
+    next(err);
+  }
+});
+
 module.exports = router;

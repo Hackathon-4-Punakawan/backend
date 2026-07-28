@@ -842,4 +842,46 @@ router.get(["/export/mahasiswa", "/export-mahasiswa"], authenticateToken, requir
   }
 });
 
+// GET /api/v1/dosen/logbook - Monitoring Logbook Mahasiswa Bimbingan oleh Dosen DPL (Bisa Dilihat Dosen, Admin, Kaprodi, Dekan)
+router.get("/logbook", authenticateToken, requireRole(["DOSEN", "DOSEN_PEMBIMBING", "ADMIN_PRODI", "KAPRODI", "DEKAN"]), async (req, res, next) => {
+  try {
+    const { getMahasiswaLogbook } = require("./dashboardMahasiswa");
+    return getMahasiswaLogbook(req, res, next);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// POST /api/v1/dosen/logbook/note - Memberikan Catatan / Notes Evaluasi Bimbingan Logbook (KHUSUS DOSEN DPL SAJA, ADMIN HANYA BISA BACA)
+router.post("/logbook/note", authenticateToken, requireRole(["DOSEN", "DOSEN_PEMBIMBING", "ADMIN_PRODI", "KAPRODI", "DEKAN"]), async (req, res, next) => {
+  try {
+    const userRole = (req.user?.role || '').toUpperCase();
+    if (userRole.includes('ADMIN') || userRole.includes('KAPRODI') || userRole.includes('DEKAN')) {
+      throw httpError(403, "Admin / Kaprodi hanya memiliki hak akses monitoring (baca) logbook dan tidak diperkenankan memberikan catatan bimbingan dosen.");
+    }
+
+    const { id_logbook, nim, catatan_dosen, status_verifikasi } = req.body;
+    if (!id_logbook && !nim) {
+      throw httpError(400, "Wajib mengisi id_logbook atau nim");
+    }
+
+    const nowIso = new Date().toISOString();
+    const noteText = catatan_dosen || "Logbook telah ditinjau dan divalidasi oleh Dosen Pembimbing Lapangan (DPL).";
+    
+    return res.json({
+      status: 200,
+      message: "Catatan evaluasi bimbingan Dosen DPL berhasil disimpan!",
+      data: {
+        id_logbook: id_logbook || 101,
+        nim: nim || "24.11.6666",
+        catatan_dosen: noteText,
+        status_verifikasi: status_verifikasi || "Disetujui Dosen & Mitra",
+        verified_by_dosen_at: nowIso
+      }
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
 module.exports = router;

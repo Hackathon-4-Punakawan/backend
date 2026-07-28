@@ -737,6 +737,11 @@ router.get("/logbook", authenticateToken, requireRole(["MITRA", "ADMIN_PRODI", "
 // POST /api/v1/mitra/logbook/acc - ACC / Verifikasi / Revisi Logbook Mahasiswa
 router.post("/logbook/acc", authenticateToken, requireRole(["MITRA", "ADMIN_PRODI", "DEKAN"]), async (req, res, next) => {
   try {
+    const userRole = (req.user?.role || '').toUpperCase();
+    if (userRole.includes('ADMIN') || userRole.includes('KAPRODI') || userRole.includes('DEKAN')) {
+      throw httpError(403, "Admin / Kaprodi hanya memiliki hak akses monitoring (baca) logbook dan tidak diperkenankan memberikan catatan mitra.");
+    }
+
     const { id_logbook, nim, action, catatan_supervisor } = req.body;
 
     if (!id_logbook && !nim) {
