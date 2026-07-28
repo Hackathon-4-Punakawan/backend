@@ -718,7 +718,20 @@ router.put("/mitra/:id", async (req, res, next) => {
 router.get("/mata-kuliah", async (req, res, next) => {
   try {
     const { data: dbMK } = await supabase.from("mata_kuliah").select("*").order("kode_mk", { ascending: true });
-    const rawList = dbMK && dbMK.length > 0 ? dbMK : memoryMataKuliahCatalog;
+    
+    // Combine database items with in-memory catalog items seamlessly
+    const combinedMap = new Map();
+    (dbMK || []).forEach((m) => {
+      if (m.kode_mk) combinedMap.set(String(m.kode_mk).trim().toUpperCase(), m);
+    });
+    (memoryMataKuliahCatalog || []).forEach((m) => {
+      if (m.kode_mk) {
+        const key = String(m.kode_mk).trim().toUpperCase();
+        combinedMap.set(key, { ...combinedMap.get(key), ...m });
+      }
+    });
+
+    const rawList = combinedMap.size > 0 ? Array.from(combinedMap.values()) : memoryMataKuliahCatalog;
 
     const list = rawList.map((m) => ({
       ...m,
@@ -765,17 +778,17 @@ router.post("/mata-kuliah", async (req, res, next) => {
       created_at: new Date().toISOString(),
     };
 
-    // Insert to DB if table exists
+    // Upsert to DB if table exists
     const { data: dbInserted } = await supabase
       .from("mata_kuliah")
-      .insert({
+      .upsert({
         kode_mk,
         nama_mk,
         sks,
         semester,
         cpmk,
         kategori,
-      })
+      }, { onConflict: "kode_mk" })
       .select()
       .maybeSingle();
 
