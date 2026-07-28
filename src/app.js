@@ -15,7 +15,7 @@ const suratAkhirMagangRouter = require("./routes/suratAkhirMagang");
 const dosenRouter = require("./routes/dosen");
 const mitraRouter = require("./routes/mitra");
 const dashboardMahasiswaRouter = require("./routes/dashboardMahasiswa");
-const aiRouter = require("./routes/ai");
+const uploadRouter = require("./routes/upload");
 
 const app = express();
 
@@ -25,6 +25,7 @@ app.use((req, res, next) => {
   req.body ||= {};
   next();
 });
+app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
 app.use("/api-tester", express.static(path.join(__dirname, "../public/api-tester")));
 
 app.get("/", (req, res) => {
@@ -52,6 +53,7 @@ app.use("/api/v1/surat-akhir-magang", suratAkhirMagangRouter);
 app.use("/api/v1/dosen", dosenRouter);
 app.use("/api/v1/dpl", dosenRouter);
 app.use("/api/v1/mitra", mitraRouter);
+app.use("/api/v1/upload", uploadRouter);
 app.use("/api/v1/ai", aiRouter);
 app.use("/api/v1", apiRouter);
 
