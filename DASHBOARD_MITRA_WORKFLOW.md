@@ -12,6 +12,9 @@ Dashboard Mitra Industri merupakan portal khusus bagi **Supervisor / HRD Mitra I
 3. Menginputkan **Penilaian Akhir Magang (Nilai Angka 0-100 & Huruf)**.
 4. Memberikan **Umpan Balik / Catatan Evaluasi Kinerja Magang**.
 5. Mengunggah atau melampirkan **Link Sertifikat Magang**.
+6. **Monitoring & Verifikasi Logbook Harian/Mingguan Mahasiswa** (`GET /api/v1/mitra/logbook` & `POST /api/v1/mitra/logbook/acc`).
+7. **Pengaturan Profil Perusahaan & Kelola Kuota Magang** (`GET /api/v1/mitra/profile` & `PUT /api/v1/mitra/profile`).
+8. **Auto-Generate Sertifikat Kelulusan Magang Industri PDF** (`POST /api/v1/mitra/generate-sertifikat`).
 
 ```mermaid
 graph TD

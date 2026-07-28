@@ -21,6 +21,11 @@ const endpointCatalog = [
   ["Dashboard Mitra", "GET", "/api/v1/mitra/mahasiswa/21.11.4001", "4. Detail Data Mahasiswa Magang & Surat Terima Kasih", {}],
   ["Dashboard Mitra", "POST", "/api/v1/mitra/penilaian", "5. Mitra Submit Penilaian Akhir Magang & Sertifikat (Post / Put)", { id_surat_akhir: 1, nim: "21.11.4001", nilai_mitra_angka: 92, nilai_mitra_huruf: "A", catatan_mitra: "Mahasiswa berkinerja luar biasa, sangat proaktif menguasai REST API & microservices.", sertifikat_magang_url: "https://drive.google.com/file/d/sertifikat_goto_budi.pdf" }],
   ["Dashboard Mitra", "POST", "/api/v1/mitra/submit-nilai", "6. Shortcut Mitra Submit Penilaian", { id_surat_akhir: 1, nim: "21.11.4001", nilai_mitra_angka: 95, catatan_mitra: "Kinerja sangat memuaskan." }],
+  ["Dashboard Mitra", "GET", "/api/v1/mitra/logbook", "7. 📝 Monitoring Daftar Logbook Harian/Mingguan Mahasiswa Magang", {}],
+  ["Dashboard Mitra", "POST", "/api/v1/mitra/logbook/acc", "8. 📝 ACC / Verifikasi Logbook Mingguan Mahasiswa (Action ACC / REVISI)", { id_logbook: 102, nim: "24.11.6666", action: "ACC", catatan_supervisor: "Logbook minggu ke-2 telah diperiksa & disetujui Supervisor." }],
+  ["Dashboard Mitra", "GET", "/api/v1/mitra/profile", "9. 🏢 Profile Perusahaan, Alamat, PIC & Kelola Kuota Magang", {}],
+  ["Dashboard Mitra", "PUT", "/api/v1/mitra/profile", "10. 🏢 Update Profil Perusahaan, Deskripsi Lowongan & Kuota Posisi", { nama_perusahaan: "PT GoTo Gojek Tokopedia Tbk", kuota_total: 12, deskripsi_lowongan: "Program Magang MBKM Software Engineering & AI Developer 2026." }],
+  ["Dashboard Mitra", "POST", "/api/v1/mitra/generate-sertifikat", "11. 📜 Auto-Generate Sertifikat Kelulusan Magang Industri PDF", { nim: "24.11.6666", nama_mahasiswa: "Fathur Rahman", posisi: "Fullstack Engineering Intern", nilai_mitra_angka: 95, nilai_mitra_huruf: "A" }],
 
   // 👑 KATEGORI KHUSUS: DASHBOARD ADMIN KAPRODI
   ["Dashboard Admin Kaprodi", "POST", "/api/v1/auth/login", "1. Login Admin Kaprodi (kaprodi.if@amikom.ac.id)", { identifier: "kaprodi.if@amikom.ac.id", password: "Admin#1234" }],

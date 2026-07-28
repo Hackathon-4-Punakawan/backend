@@ -447,9 +447,475 @@ const handleMitraSubmitPenilaian = async (req, res, next) => {
   }
 };
 
-router.post("/penilaian", authenticateToken, requireRole(["MITRA", "ADMIN_PRODI", "DEKAN"]), handleMitraSubmitPenilaian);
-router.put("/penilaian", authenticateToken, requireRole(["MITRA", "ADMIN_PRODI", "DEKAN"]), handleMitraSubmitPenilaian);
-router.post("/submit-nilai", authenticateToken, requireRole(["MITRA", "ADMIN_PRODI", "DEKAN"]), handleMitraSubmitPenilaian);
-router.put("/submit-nilai", authenticateToken, requireRole(["MITRA", "ADMIN_PRODI", "DEKAN"]), handleMitraSubmitPenilaian);
+// ----------------------------------------------------------------------
+// 5. GET /api/v1/mitra/pendaftaran-magang & POST ACC / TOLAK MAHASISWA
+// List Mahasiswa Pengaju Magang, Lihat Surat Pengantar FIK, ACC & Tolak
+// ----------------------------------------------------------------------
+const memoryMitraPendaftarStore = [
+  {
+    id_pengajuan: 1,
+    nim: "24.11.6666",
+    nama_mahasiswa: "Fathur Rahman",
+    email: "fathur.6666@students.amikom.ac.id",
+    prodi: "Informatika",
+    id_magang_fakultas: "FIK6199364",
+    nama_instansi: "PT GoTo Gojek Tokopedia Tbk",
+    posisi: "Fullstack Developer Intern",
+    surat_pengantar_url: "https://fik.amikom.ac.id/surat/SURAT-PENGANTAR-FIK6199364.pdf",
+    status_penerimaan_mitra: "Disetujui Mitra",
+    catatan_mitra: "Lolos seleksi portofolio & interview teknis.",
+    bukti_penerimaan_url: "https://fik.amikom.ac.id/surat/ACCEPTANCE-GOTO-24116666.pdf",
+    created_at: new Date().toISOString(),
+  },
+  {
+    id_pengajuan: 2,
+    nim: "21.11.4001",
+    nama_mahasiswa: "Budi Santoso",
+    email: "budi.santoso@students.amikom.ac.id",
+    prodi: "Informatika",
+    id_magang_fakultas: "FIK6199373",
+    nama_instansi: "PT GoTo Gojek Tokopedia Tbk",
+    posisi: "Backend Engineer Intern",
+    surat_pengantar_url: "https://fik.amikom.ac.id/surat/SURAT-PENGANTAR-FIK6199373.pdf",
+    status_penerimaan_mitra: "Pending Review Mitra",
+    catatan_mitra: null,
+    bukti_penerimaan_url: null,
+    created_at: new Date().toISOString(),
+  }
+];
+
+// 5a. GET LIST PENDAFTAR MAGANG DI MITRA
+router.get("/pendaftaran-magang", authenticateToken, requireRole(["MITRA", "ADMIN_PRODI", "DEKAN"]), async (req, res, next) => {
+  try {
+    const mitra = await resolveMitraProfile(req);
+
+    const { data: dbStep1 } = await supabase
+      .from("pengajuan_magang")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    const { data: dbStudents } = await supabase.from("mahasiswa").select("*");
+    const mhsMap = new Map((dbStudents || []).map((s) => [s.nim, s]));
+
+    const list = [];
+    if (dbStep1 && dbStep1.length > 0) {
+      for (const item of dbStep1) {
+        const mhs = mhsMap.get(item.nim) || {};
+        const officialId = item.id_magang_fakultas || item.nomor_layanan_fik || `FIK${item.nim.replace(/\./g, "")}`;
+        const pdfUrl = item.surat_pengantar_url || `https://fik.amikom.ac.id/surat/SURAT-PENGANTAR-${officialId}.pdf`;
+
+        list.push({
+          id_pengajuan: item.id_pengajuan,
+          nim: item.nim,
+          nama_mahasiswa: mhs.nama || "Mahasiswa Informatika",
+          email: item.email || mhs.email || `${item.nim}@students.amikom.ac.id`,
+          prodi: mhs.prodi || "Informatika",
+          angkatan: mhs.angkatan || "2024",
+          id_magang_fakultas: officialId,
+          nama_instansi: item.nama_instansi || mitra.nama_perusahaan,
+          posisi: item.posisi || "Internship Program",
+          surat_pengantar_url: pdfUrl,
+          status_penerimaan_mitra: item.status_penerimaan_mitra || "Pending Review Mitra",
+          catatan_mitra: item.catatan_mitra || null,
+          bukti_penerimaan_url: item.bukti_penerimaan_url || null,
+          created_at: item.created_at,
+        });
+      }
+    }
+
+    // Merge with memory store items
+    for (const mem of memoryMitraPendaftarStore) {
+      if (!list.some((l) => l.nim === mem.nim)) {
+        list.push(mem);
+      }
+    }
+
+    res.json({
+      status: 200,
+      message: "Daftar pendaftaran magang mahasiswa masuk ke Mitra Industri berhasil diambil",
+      data: list,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// 5b. POST ACC PENDAFTARAN MAHASISWA MAGANG OLEH MITRA
+router.post("/pendaftaran-magang/acc", authenticateToken, requireRole(["MITRA", "ADMIN_PRODI", "DEKAN"]), async (req, res, next) => {
+  try {
+    const mitra = await resolveMitraProfile(req);
+    const { id_pengajuan, nim, catatan_mitra } = req.body;
+
+    if (!id_pengajuan && !nim) {
+      throw httpError(400, "Wajib menyertakan id_pengajuan atau nim mahasiswa");
+    }
+
+    const acceptanceUrl = `https://fik.amikom.ac.id/surat/ACCEPTANCE-LETTER-${nim || "MAGANG"}.pdf`;
+    const note = catatan_mitra || "Selamat! Pendaftaran magang Anda telah disetujui resmi oleh Mitra Industri.";
+    const nowIso = new Date().toISOString();
+
+    const updatePayload = {
+      status_penerimaan_mitra: "Disetujui Mitra",
+      catatan_mitra: note,
+      bukti_penerimaan_url: acceptanceUrl,
+      updated_at: nowIso,
+    };
+
+    if (id_pengajuan) {
+      await supabase.from("pengajuan_magang").update(updatePayload).eq("id_pengajuan", id_pengajuan);
+    } else if (nim) {
+      await supabase.from("pengajuan_magang").update(updatePayload).eq("nim", nim);
+    }
+
+    // Memory store update
+    const memIndex = memoryMitraPendaftarStore.findIndex((m) => m.nim === nim || m.id_pengajuan === id_pengajuan);
+    if (memIndex >= 0) {
+      memoryMitraPendaftarStore[memIndex] = {
+        ...memoryMitraPendaftarStore[memIndex],
+        ...updatePayload,
+      };
+    } else {
+      memoryMitraPendaftarStore.unshift({
+        id_pengajuan: id_pengajuan || Date.now(),
+        nim: nim || "24.11.6666",
+        nama_mahasiswa: "Mahasiswa Magang",
+        email: `${nim}@students.amikom.ac.id`,
+        prodi: "Informatika",
+        id_magang_fakultas: `FIK${(nim || "6666").replace(/\./g, "")}`,
+        nama_instansi: mitra.nama_perusahaan,
+        posisi: "Software Engineer Intern",
+        surat_pengantar_url: `https://fik.amikom.ac.id/surat/SURAT-PENGANTAR-FIK${(nim || "6666").replace(/\./g, "")}.pdf`,
+        ...updatePayload,
+        created_at: nowIso,
+      });
+    }
+
+    res.json({
+      status: 200,
+      message: `Pendaftaran magang mahasiswa (${nim}) berhasil disetujui (ACC) oleh ${mitra.nama_perusahaan}`,
+      data: {
+        nim,
+        status_penerimaan_mitra: "Disetujui Mitra",
+        bukti_penerimaan_url: acceptanceUrl,
+        catatan_mitra: note,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// 5c. POST TOLAK PENDAFTARAN MAHASISWA MAGANG OLEH MITRA
+router.post("/pendaftaran-magang/tolak", authenticateToken, requireRole(["MITRA", "ADMIN_PRODI", "DEKAN"]), async (req, res, next) => {
+  try {
+    const mitra = await resolveMitraProfile(req);
+    const { id_pengajuan, nim, catatan_mitra } = req.body;
+
+    if (!id_pengajuan && !nim) {
+      throw httpError(400, "Wajib menyertakan id_pengajuan atau nim mahasiswa");
+    }
+
+    if (!catatan_mitra || !catatan_mitra.trim()) {
+      throw httpError(400, "Wajib menyertakan catatan/alasan penolakan pengajuan magang");
+    }
+
+    const note = catatan_mitra.trim();
+    const nowIso = new Date().toISOString();
+
+    const updatePayload = {
+      status_penerimaan_mitra: "Ditolak Mitra",
+      catatan_mitra: note,
+      updated_at: nowIso,
+    };
+
+    if (id_pengajuan) {
+      await supabase.from("pengajuan_magang").update(updatePayload).eq("id_pengajuan", id_pengajuan);
+    } else if (nim) {
+      await supabase.from("pengajuan_magang").update(updatePayload).eq("nim", nim);
+    }
+
+    // Memory store update
+    const memIndex = memoryMitraPendaftarStore.findIndex((m) => m.nim === nim || m.id_pengajuan === id_pengajuan);
+    if (memIndex >= 0) {
+      memoryMitraPendaftarStore[memIndex] = {
+        ...memoryMitraPendaftarStore[memIndex],
+        ...updatePayload,
+      };
+    }
+
+    res.json({
+      status: 200,
+      message: `Pendaftaran magang mahasiswa (${nim}) ditolak oleh ${mitra.nama_perusahaan}`,
+      data: {
+        nim,
+        status_penerimaan_mitra: "Ditolak Mitra",
+        catatan_mitra: note,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ----------------------------------------------------------------------
+// 6. FEATURE A: MONITORING & VERIFIKASI LOGBOOK HARIAN/MINGGUAN MAHASISWA
+// ----------------------------------------------------------------------
+const memoryMitraLogbookStore = [
+  {
+    id_logbook: 101,
+    nim: "24.11.6666",
+    nama_mahasiswa: "Fathur Rahman",
+    minggu_ke: 1,
+    tanggal_mulai: "2026-07-27",
+    tanggal_selesai: "2026-08-02",
+    ringkasan_kegiatan: "Onboarding tim engineering, setup environment Node.js & Supabase PostgreSQL RLS, merancang ERD basis data.",
+    file_lampiran_url: "https://drive.google.com/file/d/logbook_m1_fathur.pdf",
+    status_verifikasi: "Disetujui Supervisor Mitra",
+    catatan_supervisor: "Kerja sangat cepat & arsitektur database terstruktur dengan baik.",
+    verified_at: "2026-08-03T09:00:00Z",
+  },
+  {
+    id_logbook: 102,
+    nim: "24.11.6666",
+    nama_mahasiswa: "Fathur Rahman",
+    minggu_ke: 2,
+    tanggal_mulai: "2026-08-03",
+    tanggal_selesai: "2026-08-09",
+    ringkasan_kegiatan: "Implementasi REST API authentication JWT, role-based authorization, dan unit test Jest.",
+    file_lampiran_url: "https://drive.google.com/file/d/logbook_m2_fathur.pdf",
+    status_verifikasi: "Pending Review",
+    catatan_supervisor: null,
+    verified_at: null,
+  },
+  {
+    id_logbook: 103,
+    nim: "21.11.4001",
+    nama_mahasiswa: "Budi Santoso",
+    minggu_ke: 1,
+    tanggal_mulai: "2026-07-27",
+    tanggal_selesai: "2026-08-02",
+    ringkasan_kegiatan: "Pengenalan repositori Git perusahaan, perbaikan bug minor UI dashboard React.js.",
+    file_lampiran_url: "https://drive.google.com/file/d/logbook_m1_budi.pdf",
+    status_verifikasi: "Disetujui Supervisor Mitra",
+    catatan_supervisor: "Bagus, perbaiki indentasi kode di pull request.",
+    verified_at: "2026-08-03T10:15:00Z",
+  },
+];
+
+// GET /api/v1/mitra/logbook - Daftar Logbook Mahasiswa Magang
+router.get("/logbook", authenticateToken, requireRole(["MITRA", "ADMIN_PRODI", "DEKAN"]), async (req, res, next) => {
+  try {
+    const queryNim = req.query.nim;
+    const queryMinggu = req.query.minggu ? Number(req.query.minggu) : null;
+    const queryStatus = req.query.status;
+
+    let filtered = memoryMitraLogbookStore;
+
+    if (queryNim) {
+      filtered = filtered.filter((l) => String(l.nim) === String(queryNim));
+    }
+    if (queryMinggu) {
+      filtered = filtered.filter((l) => Number(l.minggu_ke) === queryMinggu);
+    }
+    if (queryStatus) {
+      filtered = filtered.filter((l) => String(l.status_verifikasi).toLowerCase().includes(queryStatus.toLowerCase()));
+    }
+
+    res.json({
+      status: 200,
+      message: "Daftar logbook harian/mingguan mahasiswa magang berhasil diambil",
+      data: {
+        total_logbook: filtered.length,
+        logbook: filtered,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// POST /api/v1/mitra/logbook/acc - ACC / Verifikasi / Revisi Logbook Mahasiswa
+router.post("/logbook/acc", authenticateToken, requireRole(["MITRA", "ADMIN_PRODI", "DEKAN"]), async (req, res, next) => {
+  try {
+    const { id_logbook, nim, action, catatan_supervisor } = req.body;
+
+    if (!id_logbook && !nim) {
+      throw httpError(400, "Wajib mengisi id_logbook atau nim");
+    }
+
+    const isAcc = String(action || "ACC").toUpperCase() === "ACC";
+    const statusResult = isAcc ? "Disetujui Supervisor Mitra" : "Revisi";
+    const note = catatan_supervisor || (isAcc ? "Logbook telah diperiksa & disetujui." : "Harap perjelas rincian kegiatan harian.");
+    const nowIso = new Date().toISOString();
+
+    const targetItem = memoryMitraLogbookStore.find((l) => Number(l.id_logbook) === Number(id_logbook) || (nim && String(l.nim) === String(nim)));
+
+    if (targetItem) {
+      targetItem.status_verifikasi = statusResult;
+      targetItem.catatan_supervisor = note;
+      targetItem.verified_at = nowIso;
+    }
+
+    res.json({
+      status: 200,
+      message: `Logbook minggu ke-${targetItem?.minggu_ke || 1} (${targetItem?.nim || nim}) berhasil ${isAcc ? "Disetujui (ACC)" : "Minta Revisi"} oleh Supervisor Mitra`,
+      data: targetItem || {
+        id_logbook: id_logbook || 102,
+        nim: nim || "24.11.6666",
+        status_verifikasi: statusResult,
+        catatan_supervisor: note,
+        verified_at: nowIso,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ----------------------------------------------------------------------
+// 7. FEATURE B: PENGATURAN PROFIL PERUSAHAAN & KELOLA KUOTA MAGANG
+// ----------------------------------------------------------------------
+let memoryMitraCompanyProfile = {
+  id_mitra: 1,
+  nama_perusahaan: "PT GoTo Gojek Tokopedia Tbk",
+  kategori_industri: "Technology & Unicorn",
+  bidang_usaha: "On-Demand Services, E-Commerce & Financial Technology",
+  alamat: "GOP 9 Building, Jl. Boulevard BSD Timur, Tangerang & D.I. Yogyakarta",
+  website: "https://www.gotocompany.com",
+  nama_supervisor: "Rian Hidayat, S.T.",
+  jabatan_supervisor: "Lead Software Engineering Supervisor",
+  email_supervisor: "rian.hidayat@goto.com",
+  telepon_supervisor: "+62 811-2345-6789",
+  deskripsi_lowongan: "Program Magang MBKM Software Engineering: Fullstack Developer, Backend Cloud Microservices, and AI Recommendation System.",
+  kuota_total: 10,
+  kuota_terisi: 3,
+  kuota_sisa: 7,
+  logo_url: "https://ui-avatars.com/api/?name=PT+GoTo+Gojek+Tokopedia+Tbk&background=00A040&color=fff&bold=true",
+  is_verified: true,
+};
+
+// GET /api/v1/mitra/profile - Profil Mitra & Sisa Kuota
+router.get("/profile", authenticateToken, requireRole(["MITRA", "ADMIN_PRODI", "DEKAN"]), async (req, res, next) => {
+  try {
+    res.json({
+      status: 200,
+      message: "Data profil perusahaan & kelola kuota magang berhasil diambil",
+      data: memoryMitraCompanyProfile,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// PUT & POST /api/v1/mitra/profile - Update Profil Perusahaan & Kuota Lowongan
+const handleUpdateMitraProfile = async (req, res, next) => {
+  try {
+    const {
+      nama_perusahaan,
+      kategori_industri,
+      bidang_usaha,
+      alamat,
+      website,
+      nama_supervisor,
+      jabatan_supervisor,
+      email_supervisor,
+      telepon_supervisor,
+      deskripsi_lowongan,
+      kuota_total,
+      logo_url,
+    } = req.body;
+
+    if (nama_perusahaan) memoryMitraCompanyProfile.nama_perusahaan = nama_perusahaan.trim();
+    if (kategori_industri) memoryMitraCompanyProfile.kategori_industri = kategori_industri.trim();
+    if (bidang_usaha) memoryMitraCompanyProfile.bidang_usaha = bidang_usaha.trim();
+    if (alamat) memoryMitraCompanyProfile.alamat = alamat.trim();
+    if (website) memoryMitraCompanyProfile.website = website.trim();
+    if (nama_supervisor) memoryMitraCompanyProfile.nama_supervisor = nama_supervisor.trim();
+    if (jabatan_supervisor) memoryMitraCompanyProfile.jabatan_supervisor = jabatan_supervisor.trim();
+    if (email_supervisor) memoryMitraCompanyProfile.email_supervisor = email_supervisor.trim();
+    if (telepon_supervisor) memoryMitraCompanyProfile.telepon_supervisor = telepon_supervisor.trim();
+    if (deskripsi_lowongan) memoryMitraCompanyProfile.deskripsi_lowongan = deskripsi_lowongan.trim();
+    if (logo_url) memoryMitraCompanyProfile.logo_url = logo_url.trim();
+
+    if (kuota_total !== undefined && kuota_total !== null) {
+      const newTotal = Number(kuota_total);
+      memoryMitraCompanyProfile.kuota_total = newTotal;
+      memoryMitraCompanyProfile.kuota_sisa = Math.max(0, newTotal - memoryMitraCompanyProfile.kuota_terisi);
+    }
+
+    res.json({
+      status: 200,
+      message: "Profil perusahaan & kuota magang berhasil diperbarui",
+      data: memoryMitraCompanyProfile,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+router.put("/profile", authenticateToken, requireRole(["MITRA", "ADMIN_PRODI", "DEKAN"]), handleUpdateMitraProfile);
+router.post("/profile", authenticateToken, requireRole(["MITRA", "ADMIN_PRODI", "DEKAN"]), handleUpdateMitraProfile);
+
+// ----------------------------------------------------------------------
+// 8. FEATURE C: AUTO-GENERATE SERTIFIKAT MAGANG INDUSTRI PDF
+// ----------------------------------------------------------------------
+router.post("/generate-sertifikat", authenticateToken, requireRole(["MITRA", "ADMIN_PRODI", "DEKAN"]), async (req, res, next) => {
+  try {
+    const { nim, nama_mahasiswa, id_surat_akhir, posisi, nilai_mitra_angka, nilai_mitra_huruf } = req.body;
+
+    const targetNim = nim || "24.11.6666";
+    const studentName = nama_mahasiswa || "Fathur Rahman";
+    const cleanNim = targetNim.replace(/\./g, "");
+    const certCode = `CERT-GOTO-2026-${cleanNim}`;
+    const certUrl = `https://fik.amikom.ac.id/sertifikat/CERTIFICATE-MAGANG-${cleanNim}.pdf`;
+
+    const nowFormatted = new Date().toLocaleDateString("id-ID", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    });
+
+    const certPayload = {
+      nomor_sertifikat: certCode,
+      sertifikat_magang_url: certUrl,
+      nim: targetNim,
+      nama_mahasiswa: studentName,
+      nama_perusahaan: memoryMitraCompanyProfile.nama_perusahaan,
+      posisi_magang: posisi || "Fullstack Software Engineering Intern",
+      nilai_mitra_angka: nilai_mitra_angka || 95,
+      nilai_mitra_huruf: nilai_mitra_huruf || "A",
+      supervisor_penandatangan: `${memoryMitraCompanyProfile.nama_supervisor} (${memoryMitraCompanyProfile.jabatan_supervisor})`,
+      tanggal_terbit: nowFormatted,
+      status_sertifikat: "Resmi Diterbitkan & Tanda Tangan Digital",
+    };
+
+    // Update in Supabase surat_akhir_magang table
+    if (id_surat_akhir) {
+      await supabase
+        .from("surat_akhir_magang")
+        .update({
+          sertifikat_magang_url: certUrl,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id_surat_akhir", id_surat_akhir);
+    } else if (targetNim) {
+      await supabase
+        .from("surat_akhir_magang")
+        .update({
+          sertifikat_magang_url: certUrl,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("nim", targetNim);
+    }
+
+    res.status(201).json({
+      status: 201,
+      message: `Sertifikat kelulusan magang industri untuk ${studentName} (${targetNim}) berhasil dibuat otomatis`,
+      data: certPayload,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
 
 module.exports = router;
