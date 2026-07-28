@@ -761,6 +761,18 @@ router.post("/logbook/acc", authenticateToken, requireRole(["MITRA", "ADMIN_PROD
       targetItem.verified_at = nowIso;
     }
 
+    if (isAcc) {
+      const { sendAccNotificationEmail } = require("../services/mailer");
+      sendAccNotificationEmail({
+        email: targetItem?.email || "fathur.6666@students.amikom.ac.id",
+        name: targetItem?.nama_mahasiswa || "Fathur Rahman",
+        nim: targetItem?.nim || nim || "24.11.6666",
+        status: "Disetujui Supervisor Mitra",
+        approver: "Supervisor Mitra Industri",
+        catatan: note,
+      }).catch((err) => console.warn("Mailer notification warning:", err.message));
+    }
+
     res.json({
       status: 200,
       message: `Logbook minggu ke-${targetItem?.minggu_ke || 1} (${targetItem?.nim || nim}) berhasil ${isAcc ? "Disetujui (ACC)" : "Minta Revisi"} oleh Supervisor Mitra`,

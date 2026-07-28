@@ -735,6 +735,18 @@ const handleDosenKonversiReview = async (req, res, next) => {
       }
     }
 
+    if (chosenAction === "ACC") {
+      const { sendAccNotificationEmail } = require("../services/mailer");
+      sendAccNotificationEmail({
+        email: studentCatalog?.email,
+        name: studentCatalog?.nama,
+        nim: targetNim,
+        status: "Disetujui DPL",
+        approver: "Dosen Pembimbing Lapangan (DPL)",
+        catatan: finalNote,
+      }).catch((err) => console.warn("Mailer notification warning:", err.message));
+    }
+
     res.json({
       status: 200,
       message: `Review DPL untuk mahasiswa (${targetNim}) berhasil disimpan [Action: ${chosenAction}]`,
