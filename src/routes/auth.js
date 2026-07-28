@@ -179,7 +179,7 @@ router.post("/login", async (req, res, next) => {
     if (!user) {
       // Demo accounts fallback matching
       const DEMO_ACCOUNTS = [
-        { email: "admin.fik@amikom.ac.id", role: "ADMIN_PRODI", name: "Admin Kaprodi FIK" },
+        { email: "admin.fik@amikom.ac.id", role: "ADMIN_PRODI", name: "Eli Pujastuti, M.Kom." },
         { email: "indah.susanti@amikom.ac.id", identifier: "0512038901", role: "DPL", name: "Dr. Indah Susanti, M.Kom" },
         { email: "rian.hidayat@goto.com", role: "MITRA", name: "Rian Hidayat (GoTo)" },
         { email: "fathur.6666@students.amikom.ac.id", identifier: "24.11.6666", role: "MAHASISWA", name: "Fathur Rahman" },

@@ -108,6 +108,8 @@ router.get("/dashboard-stats", async (req, res, next) => {
       data: {
         prodi_info: {
           nama_prodi: "S1 Informatika",
+          kaprodi: "Eli Pujastuti, M.Kom.",
+          nidn_kaprodi: "0419077902",
           fakultas: "Fakultas Ilmu Komputer (FIK)",
           universitas: "Universitas Amikom Yogyakarta",
           tahun_akademik: "2026/2027 (Semester Genap)",

@@ -56,16 +56,25 @@ async function resetDatabaseClean() {
 
   const adminPasswordHash = await bcrypt.hash("Admin123!", 10);
 
-  // 1. Akun Admin Kaprodi / Prodi
+  // 1. Akun Admin Kaprodi / Prodi (Eli Pujastuti, M.Kom.)
   const { data: adminUser } = await supabase.from("users").insert({
     email: "admin.fik@amikom.ac.id",
     password_hash: adminPasswordHash,
     role: "ADMIN_PRODI",
-    name: "Admin Kaprodi FIK",
+    name: "Eli Pujastuti, M.Kom.",
     is_active: true,
   }).select().maybeSingle();
 
-  console.log("  ✓ Akun Admin Prodi created: admin.fik@amikom.ac.id / Admin123!");
+  await supabase.from("admin_kaprodi").upsert({
+    nidn: "0419077902",
+    nama: "Eli Pujastuti, M.Kom.",
+    email: "admin.fik@amikom.ac.id",
+    jabatan: "Kepala Program Studi S1 Informatika",
+    prodi: "Informatika",
+    user_id: adminUser?.id
+  });
+
+  console.log("  ✓ Akun Admin Kaprodi (Eli Pujastuti, M.Kom.) created: admin.fik@amikom.ac.id / Admin123!");
 
   // 2. Akun Dosen Pembimbing Lapangan (DPL)
   const { data: dplUser } = await supabase.from("users").insert({

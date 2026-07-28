@@ -9,7 +9,7 @@ async function ensureDemoAccounts() {
   const adminHash = await bcrypt.hash("Admin123!", 10);
 
   const demoUsers = [
-    { email: "admin.fik@amikom.ac.id", role: "ADMIN_PRODI", password_hash: adminHash, name: "Admin Kaprodi FIK" },
+    { email: "admin.fik@amikom.ac.id", role: "ADMIN_PRODI", password_hash: adminHash, name: "Eli Pujastuti, M.Kom." },
     { email: "indah.susanti@amikom.ac.id", role: "DPL", password_hash: adminHash, name: "Dr. Indah Susanti, M.Kom" },
     { email: "rian.hidayat@goto.com", role: "MITRA", password_hash: adminHash, name: "Rian Hidayat (GoTo)" },
     { email: "fathur.6666@students.amikom.ac.id", role: "MAHASISWA", password_hash: defaultHash, name: "Fathur Rahman" },

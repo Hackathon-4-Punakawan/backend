@@ -40,14 +40,23 @@ async function seedDemoDataVariatif() {
   // 3. Create Demo Users & Profiles
   console.log("\n👤 3. Membuat Akun & Profil Pengguna Variatif...");
 
-  // A. Admin Kaprodi
+  // A. Admin Kaprodi (Eli Pujastuti, M.Kom.)
   const { data: adminUser } = await supabase.from("users").insert({
     email: "admin.fik@amikom.ac.id",
     password_hash: adminHash,
     role: "ADMIN_PRODI",
-    name: "Admin Kaprodi FIK",
+    name: "Eli Pujastuti, M.Kom.",
     is_active: true
   }).select().maybeSingle();
+
+  await supabase.from("admin_kaprodi").upsert({
+    nidn: "0419077902",
+    nama: "Eli Pujastuti, M.Kom.",
+    email: "admin.fik@amikom.ac.id",
+    jabatan: "Kepala Program Studi S1 Informatika",
+    prodi: "Informatika",
+    user_id: adminUser?.id
+  });
 
   // B. Dosen DPL
   const { data: dpl1User } = await supabase.from("users").insert({
