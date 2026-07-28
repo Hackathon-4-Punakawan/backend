@@ -2,6 +2,7 @@ const express = require("express");
 const supabase = require("../config/supabase");
 const { authenticateToken, requireRole } = require("../middleware/auth");
 const { memoryDplStore, memoryProposalStore, memorySuratStore, memoryKonversiStore } = require("../utils/sharedStore");
+const { sendExportResponse } = require("../utils/exportHelper");
 
 const router = express.Router();
 
@@ -21,6 +22,162 @@ function calculateGradeLetter(score) {
   if (val >= 0) return "E";
   return "E";
 }
+
+// ----------------------------------------------------------------------
+// DYNAMIC PER-STUDENT CATALOG STORE FOR DOSEN DPL
+// ----------------------------------------------------------------------
+const DYNAMIC_STUDENT_CATALOG = new Map([
+  [
+    "24.11.6666",
+    {
+      nim: "24.11.6666",
+      nama: "Fathur Rahman",
+      email: "fathur.6666@students.amikom.ac.id",
+      prodi: "Informatika",
+      angkatan: "2024",
+      foto_profile: "https://ui-avatars.com/api/?name=Fathur+Rahman&background=4f46e5&color=fff&bold=true",
+      magang: {
+        id_magang_fakultas: "FIK24116666",
+        nama_instansi: "PT GoTo Gojek Tokopedia Tbk",
+        posisi: "Fullstack Developer Intern",
+        jenis_program: "Magang Mandiri / MSIB",
+        durasi_bulan: 6,
+        tanggal_mulai: "2026-07-27",
+        tanggal_selesai: "2026-12-27",
+        supervisor_mitra: "Rian Hidayat, S.T. (Lead Software Engineering GoTo)",
+        email_supervisor_mitra: "rian.hidayat@goto.com",
+      },
+      status_konversi: "Disetujui DPL",
+      courses: [
+        { id_item: 101, id_item_konversi: 101, kode_mk: "ST084", nama_mk: "Pemrograman Web", sks: 4, cpmk: "CPMK16-Mahasiswa mampu merancang web app responsif berbasis REST API", objective: "Merancang & mendeploy dashboard React.js responsif.", durasi: "6 Bulan", status_step: "Disetujui DPL", nilai_angka: 95, nilai_huruf: "A", catatan_dosen: "Arsitektur frontend sangat rapi." },
+        { id_item: 102, id_item_konversi: 102, kode_mk: "ST116", nama_mk: "Pemrograman Basis Data", sks: 4, cpmk: "CPMK15-Mahasiswa mampu mengelola database relasional & SQL query", objective: "Mengoptimalkan query PostgreSQL & RLS Policy.", durasi: "6 Bulan", status_step: "Disetujui DPL", nilai_angka: 92, nilai_huruf: "A", catatan_dosen: "Query optimization sangat tepat." },
+        { id_item: 103, id_item_konversi: 103, kode_mk: "ST091", nama_mk: "Analisis dan Desain Sistem Informasi", sks: 4, cpmk: "CPMK11-Mahasiswa mampu merancang diagram UML & proses bisnis", objective: "Menyusun dokumentasi arsitektur sistem & Sequence Diagram.", durasi: "6 Bulan", status_step: "Disetujui DPL", nilai_angka: 90, nilai_huruf: "A", catatan_dosen: "Dokumentasi sangat lengkap." },
+        { id_item: 104, id_item_konversi: 104, kode_mk: "ST055", nama_mk: "Kecerdasan Buatan (Artificial Intelligence)", sks: 4, cpmk: "CPMK12-Mahasiswa mampu membangun API microservices & integrasi AI", objective: "Membangun REST API Express.js & integrasi AI recommendation.", durasi: "6 Bulan", status_step: "Disetujui DPL", nilai_angka: 88, nilai_huruf: "A", catatan_dosen: "Integrasi AI berjalan lancar." },
+        { id_item: 105, id_item_konversi: 105, kode_mk: "ST062", nama_mk: "Jaringan Komputer dan Cloud", sks: 4, cpmk: "CPMK-Mahasiswa mampu meluncurkan cloud microservices & CI/CD", objective: "Deployment cloud microservices & CI/CD pipeline.", durasi: "6 Bulan", status_step: "Disetujui DPL", nilai_angka: 94, nilai_huruf: "A", catatan_dosen: "CI/CD pipeline tanpa hambatan." },
+      ],
+    },
+  ],
+  [
+    "21.11.4002",
+    {
+      nim: "21.11.4002",
+      nama: "Siti Rahmawati",
+      email: "siti.rahmawati@students.amikom.ac.id",
+      prodi: "Informatika",
+      angkatan: "2021",
+      foto_profile: "https://ui-avatars.com/api/?name=Siti+Rahmawati&background=ec4899&color=fff&bold=true",
+      magang: {
+        id_magang_fakultas: "FIK21114002",
+        nama_instansi: "PT GoTo Gojek Tokopedia Tbk",
+        posisi: "Cloud & Backend Engineer Intern",
+        jenis_program: "Magang MBKM / MSIB",
+        durasi_bulan: 6,
+        tanggal_mulai: "2026-02-01",
+        tanggal_selesai: "2026-07-31",
+        supervisor_mitra: "Hendra Wijaya (Head of Backend Cloud GoTo)",
+        email_supervisor_mitra: "hendra.wijaya@goto.com",
+      },
+      status_konversi: "Menunggu Review DPL",
+      courses: [
+        { id_item: 201, id_item_konversi: 201, kode_mk: "ST084", nama_mk: "Pemrograman Web", sks: 4, cpmk: "CPMK16-Mahasiswa mampu merancang web app responsif", objective: "Mengembangkan microfrontend React.js & Tailwind CSS.", durasi: "6 Bulan", status_step: "Menunggu Review DPL", nilai_angka: null, nilai_huruf: null, catatan_dosen: null },
+        { id_item: 202, id_item_konversi: 202, kode_mk: "ST116", nama_mk: "Pemrograman Basis Data", sks: 4, cpmk: "CPMK15-Mahasiswa mampu mengelola database relasional", objective: "Merancang skema PostgreSQL & database clustering.", durasi: "6 Bulan", status_step: "Menunggu Review DPL", nilai_angka: null, nilai_huruf: null, catatan_dosen: null },
+        { id_item: 203, id_item_konversi: 203, kode_mk: "ST091", nama_mk: "Analisis dan Desain Sistem Informasi", sks: 4, cpmk: "CPMK11-Mahasiswa mampu merancang diagram UML", objective: "Membuat arsitektur sistem cloud microservices.", durasi: "6 Bulan", status_step: "Menunggu Review DPL", nilai_angka: null, nilai_huruf: null, catatan_dosen: null },
+        { id_item: 204, id_item_konversi: 204, kode_mk: "ST055", nama_mk: "Kecerdasan Buatan (Artificial Intelligence)", sks: 4, cpmk: "CPMK12-Mahasiswa mampu membangun model AI", objective: "Implementasi model AI forecasting & data pipeline.", durasi: "6 Bulan", status_step: "Menunggu Review DPL", nilai_angka: null, nilai_huruf: null, catatan_dosen: null },
+        { id_item: 205, id_item_konversi: 205, kode_mk: "ST062", nama_mk: "Jaringan Komputer dan Cloud", sks: 4, cpmk: "CPMK-Mahasiswa mampu meluncurkan cloud container", objective: "Dockerization & Kubernetes orchestration.", durasi: "6 Bulan", status_step: "Menunggu Review DPL", nilai_angka: null, nilai_huruf: null, catatan_dosen: null },
+      ],
+    },
+  ],
+  [
+    "21.11.4001",
+    {
+      nim: "21.11.4001",
+      nama: "Budi Santoso",
+      email: "budi.4001@students.amikom.ac.id",
+      prodi: "Informatika",
+      angkatan: "2021",
+      foto_profile: "https://ui-avatars.com/api/?name=Budi+Santoso&background=3b82f6&color=fff&bold=true",
+      magang: {
+        id_magang_fakultas: "FIK21114001",
+        nama_instansi: "PT Google Indonesia",
+        posisi: "Software Engineer Intern",
+        jenis_program: "Magang Mandiri",
+        durasi_bulan: 6,
+        tanggal_mulai: "2026-02-01",
+        tanggal_selesai: "2026-07-31",
+        supervisor_mitra: "Budi Setiawan (Staff Software Engineer Google)",
+        email_supervisor_mitra: "budi.setiawan@google.com",
+      },
+      status_konversi: "Menunggu Review DPL",
+      courses: [
+        { id_item: 301, id_item_konversi: 301, kode_mk: "ST084", nama_mk: "Pemrograman Web", sks: 4, cpmk: "CPMK16-Mahasiswa mampu merancang UI responsif", objective: "Sliced UI Figma to HTML5/CSS3 React.js.", durasi: "6 Bulan", status_step: "Menunggu Review DPL", nilai_angka: null, nilai_huruf: null, catatan_dosen: null },
+        { id_item: 302, id_item_konversi: 302, kode_mk: "ST116", nama_mk: "Pemrograman Basis Data", sks: 4, cpmk: "CPMK15-Mahasiswa mampu menulis SQL query", objective: "Menulis query SQL ganjil & stored procedure.", durasi: "6 Bulan", status_step: "Menunggu Review DPL", nilai_angka: null, nilai_huruf: null, catatan_dosen: null },
+        { id_item: 303, id_item_konversi: 303, kode_mk: "ST091", nama_mk: "Analisis dan Desain Sistem Informasi", sks: 4, cpmk: "CPMK11-Mahasiswa mampu merancang diagram sistem", objective: "Merancang Flowchart & ERD sistem informasi.", durasi: "6 Bulan", status_step: "Menunggu Review DPL", nilai_angka: null, nilai_huruf: null, catatan_dosen: null },
+        { id_item: 304, id_item_konversi: 304, kode_mk: "ST055", nama_mk: "Kecerdasan Buatan (Artificial Intelligence)", sks: 4, cpmk: "CPMK12-Mahasiswa mampu mengintegrasikan API NLP", objective: "Integrasi API NLP & Text Classification.", durasi: "6 Bulan", status_step: "Menunggu Review DPL", nilai_angka: null, nilai_huruf: null, catatan_dosen: null },
+        { id_item: 305, id_item_konversi: 305, kode_mk: "ST062", nama_mk: "Jaringan Komputer dan Cloud", sks: 4, cpmk: "CPMK-Mahasiswa mampu meluncurkan cloud server", objective: "Cloud server deployment AWS EC2.", durasi: "6 Bulan", status_step: "Menunggu Review DPL", nilai_angka: null, nilai_huruf: null, catatan_dosen: null },
+      ],
+    },
+  ],
+  [
+    "24.11.4006",
+    {
+      nim: "24.11.4006",
+      nama: "Ramadhan",
+      email: "ramadhan.4006@students.amikom.ac.id",
+      prodi: "Informatika",
+      angkatan: "2024",
+      foto_profile: "https://ui-avatars.com/api/?name=Ramadhan&background=8b5cf6&color=fff&bold=true",
+      magang: {
+        id_magang_fakultas: "FIK24114006",
+        nama_instansi: "PT Amikom Tech Digital",
+        posisi: "Fullstack Developer Intern",
+        jenis_program: "Magang Mandiri",
+        durasi_bulan: 6,
+        tanggal_mulai: "2026-07-27",
+        tanggal_selesai: "2026-12-27",
+        supervisor_mitra: "Agus Pratama (Senior Fullstack Tech Lead)",
+        email_supervisor_mitra: "agus.pratama@amikomtech.com",
+      },
+      status_konversi: "Menunggu Review DPL",
+      courses: [
+        { id_item: 401, id_item_konversi: 401, kode_mk: "ST084", nama_mk: "Pemrograman Web", sks: 4, cpmk: "CPMK16-Mahasiswa mampu membuat portal web", objective: "Membangun portal e-learning & CMS dashboard.", durasi: "6 Bulan", status_step: "Menunggu Review DPL", nilai_angka: null, nilai_huruf: null, catatan_dosen: null },
+        { id_item: 402, id_item_konversi: 402, kode_mk: "ST116", nama_mk: "Pemrograman Basis Data", sks: 4, cpmk: "CPMK15-Mahasiswa mampu mengoptimalkan skema database", objective: "Optimization & indexing Supabase database.", durasi: "6 Bulan", status_step: "Menunggu Review DPL", nilai_angka: null, nilai_huruf: null, catatan_dosen: null },
+        { id_item: 403, id_item_konversi: 403, kode_mk: "ST091", nama_mk: "Analisis dan Desain Sistem Informasi", sks: 4, cpmk: "CPMK11-Mahasiswa mampu merancang UI/UX wireframe", objective: "Perancangan UI/UX wireframe & system specification.", durasi: "6 Bulan", status_step: "Menunggu Review DPL", nilai_angka: null, nilai_huruf: null, catatan_dosen: null },
+        { id_item: 404, id_item_konversi: 404, kode_mk: "ST055", nama_mk: "Kecerdasan Buatan (Artificial Intelligence)", sks: 4, cpmk: "CPMK12-Mahasiswa mampu fine-tuning AI model", objective: "Fine-tuning model generative AI.", durasi: "6 Bulan", status_step: "Menunggu Review DPL", nilai_angka: null, nilai_huruf: null, catatan_dosen: null },
+        { id_item: 405, id_item_konversi: 405, kode_mk: "ST062", nama_mk: "Jaringan Komputer dan Cloud", sks: 4, cpmk: "CPMK-Mahasiswa mampu setup server network", objective: "Setup VPN & Server Network Infrastructure.", durasi: "6 Bulan", status_step: "Menunggu Review DPL", nilai_angka: null, nilai_huruf: null, catatan_dosen: null },
+      ],
+    },
+  ],
+  [
+    "24.11.5556",
+    {
+      nim: "24.11.5556",
+      nama: "Daus sedap",
+      email: "rebelzi8@gmail.com",
+      prodi: "Informatika",
+      angkatan: "2024",
+      foto_profile: "https://ui-avatars.com/api/?name=Daus+sedap&background=10b981&color=fff&bold=true",
+      magang: {
+        id_magang_fakultas: "FIK24115556",
+        nama_instansi: "PT. ADM (PT. ADM)",
+        posisi: "Fullstack Developer Intern",
+        jenis_program: "Magang Mandiri",
+        durasi_bulan: 6,
+        tanggal_mulai: "2026-07-27",
+        tanggal_selesai: "2026-12-27",
+        supervisor_mitra: "Siti Rahmawati (Supervisor Industri ADM)",
+        email_supervisor_mitra: "siti.rahma@adm.co.id",
+      },
+      status_konversi: "Menunggu Review DPL",
+      courses: [
+        { id_item: 501, id_item_konversi: 501, kode_mk: "ST084", nama_mk: "Pemrograman Web", sks: 4, cpmk: "CPMK16-Mahasiswa mampu membuat landing page admin", objective: "Membuat landing page & dashboard admin.", durasi: "6 Bulan", status_step: "Menunggu Review DPL", nilai_angka: null, nilai_huruf: null, catatan_dosen: null },
+        { id_item: 502, id_item_konversi: 502, kode_mk: "ST116", nama_mk: "Pemrograman Basis Data", sks: 4, cpmk: "CPMK15-Mahasiswa mampu mengelola relasi database", objective: "Operasi CRUD & relasi tabel database.", durasi: "6 Bulan", status_step: "Menunggu Review DPL", nilai_angka: null, nilai_huruf: null, catatan_dosen: null },
+        { id_item: 503, id_item_konversi: 503, kode_mk: "ST091", nama_mk: "Analisis dan Desain Sistem Informasi", sks: 4, cpmk: "CPMK11-Mahasiswa mampu menganalisis user stories", objective: "Analisis kebutuhan sistem & user stories.", durasi: "6 Bulan", status_step: "Menunggu Review DPL", nilai_angka: null, nilai_huruf: null, catatan_dosen: null },
+        { id_item: 504, id_item_konversi: 504, kode_mk: "ST055", nama_mk: "Kecerdasan Buatan (Artificial Intelligence)", sks: 4, cpmk: "CPMK12-Mahasiswa mampu membangun chatbot AI", objective: "Implementasi chatbot AI customer support.", durasi: "6 Bulan", status_step: "Menunggu Review DPL", nilai_angka: null, nilai_huruf: null, catatan_dosen: null },
+        { id_item: 505, id_item_konversi: 505, kode_mk: "ST062", nama_mk: "Jaringan Komputer dan Cloud", sks: 4, cpmk: "CPMK-Mahasiswa mampu konfigurasi Nginx & SSL", objective: "Configuration Linux Nginx & SSL Certificate.", durasi: "6 Bulan", status_step: "Menunggu Review DPL", nilai_angka: null, nilai_huruf: null, catatan_dosen: null },
+      ],
+    },
+  ],
+]);
 
 // Helper: Resolve active DPL profile from JWT token / DB
 async function resolveDplProfile(req) {
@@ -57,7 +214,6 @@ async function resolveDplProfile(req) {
     if (data) dpl = data;
   }
 
-  // Fallback default DPL profile if not linked in DB yet
   if (!dpl) {
     dpl = {
       nidn: profileId || "0512038901",
@@ -74,129 +230,27 @@ async function resolveDplProfile(req) {
 
 // ----------------------------------------------------------------------
 // 1. GET /api/v1/dosen/dashboard-stats
-// Ringkasan Statistik DPL: Jumlah Mahasiswa Diampu per Semester, Status Konversi
 // ----------------------------------------------------------------------
 router.get("/dashboard-stats", authenticateToken, requireRole(["DPL", "ADMIN_PRODI"]), async (req, res, next) => {
   try {
     const dpl = await resolveDplProfile(req);
     const requestedSemester = Number.parseInt(req.query.semester, 10) || 6;
 
-    // Fetch advisee submissions for this DPL
-    const { data: dbDplSubs } = await supabase
-      .from("pengajuan_dpl")
-      .select("*");
+    const advisees = Array.from(DYNAMIC_STUDENT_CATALOG.values());
 
-    const { data: dbMagangSubs } = await supabase
-      .from("pengajuan_magang")
-      .select("*, mahasiswa(nim, nama, email, prodi, angkatan, foto_profile)");
-
-    const { data: dbKonversiHeader } = await supabase
-      .from("pengajuan_konversi_matkul")
-      .select("*");
-
-    const { data: dbKonversiItems } = await supabase
-      .from("item_konversi_mk")
-      .select("*");
-
-    const { data: dbItemDetails } = await supabase
-      .from("item_konversi_detail")
-      .select("*");
-
-    // Aggregate advisee students
-    const adviseeMap = new Map();
-
-    // 1. Combine DB items from pengajuan_magang
-    for (const magang of dbMagangSubs || []) {
-      const isMatchDpl = !magang.nidn || magang.nidn === dpl.nidn || req.user.role === "ADMIN_PRODI";
-      if (isMatchDpl && magang.nim) {
-        adviseeMap.set(magang.nim, {
-          nim: magang.nim,
-          nama: magang.mahasiswa?.nama || "Mahasiswa FIK",
-          email: magang.mahasiswa?.email || `${magang.nim}@students.amikom.ac.id`,
-          prodi: magang.mahasiswa?.prodi || "Informatika",
-          angkatan: magang.mahasiswa?.angkatan || "2021",
-          semester: magang.semester || requestedSemester,
-          posisi: magang.posisi || "Fullstack Developer Intern",
-          nama_instansi: magang.nama_instansi || "PT Amikom Digital",
-          id_magang_fakultas: magang.nomor_layanan_fik || magang.id_magang_fakultas || "FIK6199364",
-        });
-      }
-    }
-
-    // 2. Combine from pengajuan_dpl
-    for (const dplSub of dbDplSubs || []) {
-      if ((dplSub.nidn_dpl === dpl.nidn || !dplSub.nidn_dpl || req.user.role === "ADMIN_PRODI") && dplSub.nim) {
-        if (!adviseeMap.has(dplSub.nim)) {
-          adviseeMap.set(dplSub.nim, {
-            nim: dplSub.nim,
-            nama: dplSub.nama_mahasiswa || "Mahasiswa FIK",
-            email: dplSub.email_mahasiswa || `${dplSub.nim}@students.amikom.ac.id`,
-            prodi: "Informatika",
-            angkatan: "2021",
-            semester: requestedSemester,
-            posisi: "Software Engineer Intern",
-            nama_instansi: "PT Technology Indonesia",
-            id_magang_fakultas: dplSub.id_magang_fakultas || "FIK6199364",
-          });
-        }
-      }
-    }
-
-    // Ensure fallback demo student 21.11.4001 is included if empty
-    if (adviseeMap.size === 0) {
-      adviseeMap.set("21.11.4001", {
-        nim: "21.11.4001",
-        nama: "Budi Santoso",
-        email: "budi.santoso@students.amikom.ac.id",
-        prodi: "Informatika",
-        angkatan: "2021",
-        semester: 6,
-        posisi: "Fullstack Developer Intern",
-        nama_instansi: "PT GoTo Gojek Tokopedia Tbk",
-        id_magang_fakultas: "FIK6199373",
-      });
-    }
-
-    const advisees = Array.from(adviseeMap.values());
-
-    // Calculate status breakdowns
     let countPerluReview = 0;
     let countDisetujui = 0;
     let countRevisi = 0;
     let totalSksDikembangkan = 0;
 
-    // Evaluate items from item_konversi_mk
-    for (const item of dbKonversiItems || []) {
-      const status = item.status_step || item.status_usulan || "Menunggu Review DPL";
-      if (status.includes("Revisi")) {
-        countRevisi++;
-      } else if (status.includes("Disetujui") || status.includes("ACC")) {
-        countDisetujui++;
-      } else {
-        countPerluReview++;
+    for (const student of advisees) {
+      for (const course of student.courses) {
+        const st = course.status_step || "Menunggu Review DPL";
+        if (st.includes("Revisi")) countRevisi++;
+        else if (st.includes("Disetujui") || st.includes("ACC")) countDisetujui++;
+        else countPerluReview++;
+        totalSksDikembangkan += Number(course.sks || 4);
       }
-      totalSksDikembangkan += 4;
-    }
-
-    // Evaluate items from item_konversi_detail
-    for (const item of dbItemDetails || []) {
-      const status = item.status_item || "Menunggu Persetujuan DPL";
-      const sks = item.sks || 4;
-      if (status.includes("Revisi")) {
-        countRevisi++;
-      } else if (status.includes("Disetujui") || status.includes("ACC")) {
-        countDisetujui++;
-      } else {
-        countPerluReview++;
-      }
-      totalSksDikembangkan += sks;
-    }
-
-    // Fallback counts if database has no items yet
-    if (countPerluReview === 0 && countDisetujui === 0 && countRevisi === 0) {
-      countPerluReview = 1;
-      countDisetujui = 4;
-      totalSksDikembangkan = 20;
     }
 
     res.json({
@@ -221,9 +275,9 @@ router.get("/dashboard-stats", authenticateToken, requireRole(["DPL", "ADMIN_PRO
           nim: m.nim,
           nama: m.nama,
           prodi: m.prodi,
-          semester: m.semester,
-          posisi: m.posisi,
-          nama_instansi: m.nama_instansi,
+          angkatan: m.angkatan,
+          posisi: m.magang.posisi,
+          nama_instansi: m.magang.nama_instansi,
         })),
       },
     });
@@ -234,7 +288,7 @@ router.get("/dashboard-stats", authenticateToken, requireRole(["DPL", "ADMIN_PRO
 
 // ----------------------------------------------------------------------
 // 2. GET /api/v1/dosen/mahasiswa
-// Menampilkan Daftar Mahasiswa yang Diampu oleh DPL
+// Daftar Mahasiswa Bimbingan DPL
 // ----------------------------------------------------------------------
 router.get("/mahasiswa", authenticateToken, requireRole(["DPL", "ADMIN_PRODI"]), async (req, res, next) => {
   try {
@@ -242,118 +296,76 @@ router.get("/mahasiswa", authenticateToken, requireRole(["DPL", "ADMIN_PRODI"]),
     const searchKeyword = (req.query.search || "").toLowerCase().trim();
     const filterStatus = req.query.status_konversi || "";
 
-    // Fetch DB Data
     const { data: dbMhs } = await supabase.from("mahasiswa").select("*");
-    const { data: dbDplSub } = await supabase.from("pengajuan_dpl").select("*");
-    const { data: dbMagangSub } = await supabase.from("pengajuan_magang").select("*");
-    const { data: dbKonversiHeader } = await supabase.from("pengajuan_konversi_matkul").select("*");
-    const { data: dbKonversiItems } = await supabase.from("item_konversi_mk").select("*");
-    const { data: dbItemDetails } = await supabase.from("item_konversi_detail").select("*");
-
-    const mhsMap = new Map();
-
-    // Map all mahasiswa
-    for (const m of dbMhs || []) {
-      mhsMap.set(m.nim, m);
-    }
+    const { data: dbStep1 } = await supabase.from("pengajuan_magang").select("*");
+    const { data: dbStep2 } = await supabase.from("proposal_magang").select("*");
+    const { data: dbStep4 } = await supabase.from("pengajuan_dpl").select("*");
+    const { data: dbStep5 } = await supabase.from("pengajuan_konversi_matkul").select("*");
 
     const resultList = [];
+    const catalogList = Array.from(DYNAMIC_STUDENT_CATALOG.values());
 
-    // Grouping by student NIM
-    const studentNims = new Set();
-    for (const p of dbDplSub || []) if (p.nim) studentNims.add(p.nim);
-    for (const m of dbMagangSub || []) if (m.nim) studentNims.add(m.nim);
-    for (const k of dbKonversiHeader || []) if (k.nim) studentNims.add(k.nim);
-    for (const i of dbItemDetails || []) if (i.nim) studentNims.add(i.nim);
+    for (const catalogItem of catalogList) {
+      const nim = catalogItem.nim;
+      const dbM = (dbMhs || []).find((m) => m.nim === nim);
+      const db1 = (dbStep1 || []).find((s) => s.nim === nim);
+      const db2 = (dbStep2 || []).find((p) => p.nim === nim);
+      const db4 = (dbStep4 || []).find((d) => d.nim === nim);
+      const db5 = (dbStep5 || []).find((k) => k.nim === nim);
 
-    // Default demo student if DB empty
-    if (studentNims.size === 0) {
-      studentNims.add("21.11.4001");
-    }
+      const mNama = dbM?.nama || catalogItem.nama;
+      const mEmail = dbM?.email || catalogItem.email;
+      const mProdi = dbM?.prodi || catalogItem.prodi;
+      const mAngkatan = dbM?.angkatan || catalogItem.angkatan;
+      const mInstansi = db1?.nama_instansi || db2?.nama_instansi || catalogItem.magang.nama_instansi;
+      const mPosisi = db2?.program_diikuti || db1?.posisi || catalogItem.magang.posisi;
 
-    for (const nim of studentNims) {
-      const mProfile = mhsMap.get(nim) || {
-        nim,
-        nama: nim === "21.11.4001" ? "Budi Santoso" : "Mahasiswa Bimbingan FIK",
-        email: `${nim}@students.amikom.ac.id`,
-        prodi: "Informatika",
-        angkatan: "2021",
-        foto_profile: `https://ui-avatars.com/api/?name=${encodeURIComponent("Budi Santoso")}&background=4f46e5&color=fff&bold=true`,
-      };
+      // Status overall calculation
+      const statuses = catalogItem.courses.map((c) => c.status_step);
+      let overallStatus = catalogItem.status_konversi;
+      if (statuses.some((s) => s.includes("Revisi"))) overallStatus = "Revisi DPL";
+      else if (statuses.every((s) => s.includes("Disetujui") || s.includes("ACC"))) overallStatus = "Disetujui DPL";
+      else overallStatus = "Menunggu Review DPL";
 
-      // Find internship info
-      const magangInfo = (dbMagangSub || []).find((m) => m.nim === nim) || {};
-      const dplInfo = (dbDplSub || []).find((d) => d.nim === nim) || {};
-      const konversiHeader = (dbKonversiHeader || []).find((k) => k.nim === nim) || {};
-
-      // Filter conversion items for this student
-      const studentItemsMk = (dbKonversiItems || []).filter((i) => i.id_pengajuan === magangInfo.id_pengajuan);
-      const studentItemDetails = (dbItemDetails || []).filter((i) => i.nim === nim);
-
-      const totalItemsCount = Math.max(studentItemsMk.length, studentItemDetails.length, 5);
-      
-      // Calculate Total SKS
-      let totalSks = 0;
-      if (studentItemDetails.length > 0) {
-        totalSks = studentItemDetails.reduce((sum, item) => sum + Number(item.sks || 4), 0);
-      } else if (studentItemsMk.length > 0) {
-        totalSks = studentItemsMk.length * 4;
-      } else {
-        totalSks = konversiHeader.total_sks || 20;
-      }
-
-      // Determine Overall Status Konversi
-      let overallStatus = konversiHeader.status_konversi || "Menunggu Review DPL";
-      const allStatuses = [
-        ...studentItemsMk.map((i) => i.status_step || i.status_usulan),
-        ...studentItemDetails.map((i) => i.status_item),
-      ].filter(Boolean);
-
-      if (allStatuses.some((s) => s.includes("Revisi"))) {
-        overallStatus = "Revisi DPL";
-      } else if (allStatuses.length > 0 && allStatuses.every((s) => s.includes("Disetujui") || s.includes("ACC"))) {
-        overallStatus = "Disetujui DPL";
-      }
+      catalogItem.status_konversi = overallStatus;
 
       const item = {
-        nim: mProfile.nim,
-        nama: mProfile.nama,
-        email: mProfile.email,
-        prodi: mProfile.prodi || "Informatika",
-        angkatan: mProfile.angkatan || "2021",
-        foto_profile: mProfile.foto_profile,
+        nim: nim,
+        nama: mNama,
+        email: mEmail,
+        prodi: mProdi,
+        angkatan: mAngkatan,
+        foto_profile: dbM?.foto_profile || catalogItem.foto_profile,
         magang: {
-          id_magang_fakultas: magangInfo.nomor_layanan_fik || magangInfo.id_magang_fakultas || dplInfo.id_magang_fakultas || "FIK6199373",
-          nama_instansi: magangInfo.nama_instansi || "PT GoTo Gojek Tokopedia Tbk",
-          posisi: magangInfo.posisi || "Fullstack Developer Intern",
-          jenis_program: magangInfo.jenis_program || "Magang Mandiri / MSIB",
-          durasi_bulan: magangInfo.durasi_bulan || 6,
-          tanggal_mulai: magangInfo.tanggal_mulai || "2026-02-01",
-          tanggal_selesai: magangInfo.tanggal_selesai || "2026-07-31",
-          supervisor_mitra: magangInfo.nama_supervisor_mitra || "Rian Hidayat (Lead Eng GoTo)",
+          id_magang_fakultas: db1?.id_magang_fakultas || catalogItem.magang.id_magang_fakultas,
+          nama_instansi: mInstansi,
+          posisi: mPosisi,
+          jenis_program: db1?.jenis_program || catalogItem.magang.jenis_program,
+          durasi_bulan: catalogItem.magang.durasi_bulan,
+          tanggal_mulai: catalogItem.magang.tanggal_mulai,
+          tanggal_selesai: catalogItem.magang.tanggal_selesai,
+          supervisor_mitra: catalogItem.magang.supervisor_mitra,
         },
         plotting_dpl: {
-          status_pengajuan: dplInfo.status_pengajuan || "Disetujui",
-          sk_dpl_url: dplInfo.sk_dpl_url || "https://fik.amikom.ac.id/sk-dpl/SK-DPL-21.11.4001.pdf",
-          sks_ditempuh: dplInfo.sks_ditempuh || 110,
+          status_pengajuan: db4?.status_pengajuan || "Disetujui",
+          sk_dpl_url: db4?.sk_dpl_url || `https://fik.amikom.ac.id/sk-dpl/SK-DPL-${nim}.pdf`,
+          sks_ditempuh: db4?.sks_ditempuh || 110,
         },
         konversi_sks: {
           status_konversi: overallStatus,
-          total_sks: totalSks,
-          total_matkul: totalItemsCount,
-          mode_input: konversiHeader.mode_input || "AI_RECOMMENDATION",
-          updated_at: konversiHeader.updated_at || new Date().toISOString(),
+          total_sks: catalogItem.courses.reduce((sum, c) => sum + Number(c.sks || 4), 0),
+          total_matkul: catalogItem.courses.length,
+          mode_input: db5?.mode_input || "AI_RECOMMENDATION",
+          updated_at: db5?.updated_at || new Date().toISOString(),
         },
       };
 
-      // Filter Search
       const matchSearch =
         !searchKeyword ||
         item.nama.toLowerCase().includes(searchKeyword) ||
         item.nim.toLowerCase().includes(searchKeyword) ||
         item.magang.nama_instansi.toLowerCase().includes(searchKeyword);
 
-      // Filter Status
       const matchStatus =
         !filterStatus ||
         item.konversi_sks.status_konversi.toLowerCase().includes(filterStatus.toLowerCase());
@@ -382,190 +394,102 @@ router.get("/mahasiswa", authenticateToken, requireRole(["DPL", "ADMIN_PRODI"]),
 
 // ----------------------------------------------------------------------
 // 3. GET /api/v1/dosen/mahasiswa/:nim
-// Menampilkan Data Detail Mahasiswa Bimbingan DPL
+// Detail Mahasiswa Bimbingan DPL & Form Review Klaim Nilai
 // ----------------------------------------------------------------------
 router.get("/mahasiswa/:nim", authenticateToken, requireRole(["DPL", "ADMIN_PRODI"]), async (req, res, next) => {
   try {
     const dpl = await resolveDplProfile(req);
     const nimParam = req.params.nim.trim();
 
-    // Query DB for specific student
-    const { data: mProfile } = await supabase
-      .from("mahasiswa")
-      .select("*")
-      .eq("nim", nimParam)
-      .maybeSingle();
+    // Query DB
+    const { data: mProfile } = await supabase.from("mahasiswa").select("*").eq("nim", nimParam).maybeSingle();
+    const { data: dplSub } = await supabase.from("pengajuan_dpl").select("*").eq("nim", nimParam).maybeSingle();
+    const { data: magangSub } = await supabase.from("pengajuan_magang").select("*").eq("nim", nimParam).maybeSingle();
+    const { data: proposalSub } = await supabase.from("proposal_magang").select("*").eq("nim", nimParam).maybeSingle();
+    const { data: konversiHeader } = await supabase.from("pengajuan_konversi_matkul").select("*").eq("nim", nimParam).maybeSingle();
+    const { data: dbItemDetails } = await supabase.from("item_konversi_detail").select("*").eq("nim", nimParam);
+    const { data: dbItemsMk } = await supabase.from("item_konversi_mk").select("*").eq("nim", nimParam);
 
-    const { data: dplSub } = await supabase
-      .from("pengajuan_dpl")
-      .select("*")
-      .eq("nim", nimParam)
-      .order("created_at", { ascending: false })
-      .maybeSingle();
+    // Resolve per-student catalog data
+    let studentCatalog = DYNAMIC_STUDENT_CATALOG.get(nimParam);
+    if (!studentCatalog) {
+      studentCatalog = {
+        nim: nimParam,
+        nama: mProfile?.nama || `Mahasiswa (${nimParam})`,
+        email: mProfile?.email || `${nimParam}@students.amikom.ac.id`,
+        prodi: mProfile?.prodi || "Informatika",
+        angkatan: mProfile?.angkatan || "2024",
+        foto_profile: mProfile?.foto_profile || `https://ui-avatars.com/api/?name=${encodeURIComponent(nimParam)}&background=4f46e5&color=fff&bold=true`,
+        magang: {
+          id_magang_fakultas: `FIK${nimParam.replace(/\./g, "")}`,
+          nama_instansi: "PT GoTo Gojek Tokopedia Tbk",
+          posisi: "Fullstack Developer Intern",
+          jenis_program: "Magang Mandiri",
+          durasi_bulan: 6,
+          tanggal_mulai: "2026-07-27",
+          tanggal_selesai: "2026-12-27",
+          supervisor_mitra: "Supervisor Industri",
+          email_supervisor_mitra: "supervisor@mitra.com",
+        },
+        status_konversi: "Menunggu Review DPL",
+        courses: [
+          { id_item: 601, id_item_konversi: 601, kode_mk: "ST084", nama_mk: "Pemrograman Web", sks: 4, cpmk: "CPMK16-Mahasiswa mampu merancang web app responsif", objective: "Merancang & mendeploy dashboard React.js responsif.", durasi: "6 Bulan", status_step: "Menunggu Review DPL", nilai_angka: null, nilai_huruf: null, catatan_dosen: null },
+          { id_item: 602, id_item_konversi: 602, kode_mk: "ST116", nama_mk: "Pemrograman Basis Data", sks: 4, cpmk: "CPMK15-Mahasiswa mampu mengelola database relasional", objective: "Mengoptimalkan query PostgreSQL & RLS Policy.", durasi: "6 Bulan", status_step: "Menunggu Review DPL", nilai_angka: null, nilai_huruf: null, catatan_dosen: null },
+          { id_item: 603, id_item_konversi: 603, kode_mk: "ST091", nama_mk: "Analisis dan Desain Sistem Informasi", sks: 4, cpmk: "CPMK11-Mahasiswa mampu merancang diagram UML", objective: "Menyusun dokumentasi arsitektur sistem & Sequence Diagram.", durasi: "6 Bulan", status_step: "Menunggu Review DPL", nilai_angka: null, nilai_huruf: null, catatan_dosen: null },
+          { id_item: 604, id_item_konversi: 604, kode_mk: "ST055", nama_mk: "Kecerdasan Buatan (Artificial Intelligence)", sks: 4, cpmk: "CPMK12-Mahasiswa mampu membangun API microservices", objective: "Membangun REST API Express.js & integrasi AI recommendation.", durasi: "6 Bulan", status_step: "Menunggu Review DPL", nilai_angka: null, nilai_huruf: null, catatan_dosen: null },
+          { id_item: 605, id_item_konversi: 605, kode_mk: "ST062", nama_mk: "Jaringan Komputer dan Cloud", sks: 4, cpmk: "CPMK-Mahasiswa mampu meluncurkan cloud microservices", objective: "Deployment cloud microservices & CI/CD pipeline.", durasi: "6 Bulan", status_step: "Menunggu Review DPL", nilai_angka: null, nilai_huruf: null, catatan_dosen: null },
+        ],
+      };
+      DYNAMIC_STUDENT_CATALOG.set(nimParam, studentCatalog);
+    }
 
-    const { data: magangSub } = await supabase
-      .from("pengajuan_magang")
-      .select("*")
-      .eq("nim", nimParam)
-      .order("created_at", { ascending: false })
-      .maybeSingle();
-
-    const { data: proposalSub } = await supabase
-      .from("proposal_magang")
-      .select("*")
-      .eq("nim", nimParam)
-      .order("created_at", { ascending: false })
-      .maybeSingle();
-
-    const { data: suratPengantarSub } = await supabase
-      .from("surat_pengantar_magang")
-      .select("*")
-      .eq("nim", nimParam)
-      .order("created_at", { ascending: false })
-      .maybeSingle();
-
-    const { data: konversiHeader } = await supabase
-      .from("pengajuan_konversi_matkul")
-      .select("*")
-      .eq("nim", nimParam)
-      .maybeSingle();
-
-    const { data: dbItemDetails } = await supabase
-      .from("item_konversi_detail")
-      .select("*")
-      .eq("nim", nimParam)
-      .order("id_item", { ascending: true });
-
-    const { data: dbItemsMk } = await supabase
-      .from("item_konversi_mk")
-      .select("*")
-      .eq("nim", nimParam)
-      .order("id_item_konversi", { ascending: true });
-
-    // Format Mahasiswa Detail Payload
-    const studentName = mProfile?.nama || (nimParam === "21.11.4001" ? "Budi Santoso" : "Mahasiswa Bimbingan FIK");
-    const studentEmail = mProfile?.email || `${nimParam}@students.amikom.ac.id`;
-
-    // Process conversion items list
-    let itemsKonversi = [];
-
+    // Merge DB conversion items if present
     if (dbItemDetails && dbItemDetails.length > 0) {
-      itemsKonversi = dbItemDetails.map((item) => ({
+      studentCatalog.courses = dbItemDetails.map((item) => ({
         id_item: item.id_item,
         id_item_konversi: item.id_item,
         kode_mk: item.kode_mk,
         nama_mk: item.nama_mk,
-        sks: item.sks,
-        cpmk: item.cpmk,
-        objective: item.objective,
+        sks: Number(item.sks || 4),
+        cpmk: item.cpmk || "CPMK-Mampu menguasai modul teknologi industri",
+        objective: item.objective || item.modul_industri || "-",
         durasi: item.durasi || "6 Bulan",
-        status_step: item.status_item || "Menunggu Persetujuan DPL",
-        catatan_dosen: item.catatan_dosen || item.catatan_revisi || null,
+        status_step: item.status_item || "Menunggu Review DPL",
+        catatan_dosen: item.catatan_dosen || null,
         nilai_angka: item.nilai_angka,
         nilai_huruf: item.nilai_huruf,
       }));
     } else if (dbItemsMk && dbItemsMk.length > 0) {
-      itemsKonversi = dbItemsMk.map((item) => ({
+      studentCatalog.courses = dbItemsMk.map((item) => ({
         id_item: item.id_item_konversi,
         id_item_konversi: item.id_item_konversi,
         kode_mk: item.kode_mk,
-        nama_mk: item.kode_mk === "ST084" ? "Pemrograman Web" : item.kode_mk === "ST116" ? "Pemrograman Basis Data" : item.kode_mk === "ST091" ? "Analisis dan Desain Sistem Informasi" : item.kode_mk === "ST055" ? "Arsitektur REST API & Cloud Computing" : "Rekayasa Perangkat Lunak",
+        nama_mk: item.kode_mk === "ST084" ? "Pemrograman Web" : item.kode_mk === "ST116" ? "Pemrograman Basis Data" : item.kode_mk === "ST091" ? "Analisis dan Desain Sistem Informasi" : item.kode_mk === "ST055" ? "Kecerdasan Buatan (Artificial Intelligence)" : "Jaringan Komputer dan Cloud",
         sks: 4,
         cpmk: "CPMK-Mahasiswa mampu merancang perangkat lunak pada platform digital",
-        objective: item.aktivitas_magang || "Membangun REST API backend & microservices dashboard",
+        objective: item.modul_industri || item.aktivitas_magang || "-",
         durasi: "6 Bulan",
         status_step: item.status_step || item.status_usulan || "Menunggu Review DPL",
         catatan_dosen: item.catatan_dosen || null,
         nilai_angka: item.nilai_akhir_angka,
         nilai_huruf: item.nilai_akhir_huruf,
       }));
-    } else {
-      // Default fallback conversion list for preview/testing
-      itemsKonversi = [
-        {
-          id_item: 101,
-          id_item_konversi: 101,
-          kode_mk: "ST084",
-          nama_mk: "Pemrograman Web",
-          sks: 4,
-          cpmk: "CPMK16-Mahasiswa mampu merancang perangkat lunak pada berbagai platform digital\nCPMK18-Mahasiswa mampu menganalisis kebutuhan industri",
-          objective: "Merancang dan merilis dashboard React.js responsif untuk kebutuhan internal perusahaan.",
-          durasi: "6 Bulan",
-          status_step: "Menunggu Review DPL",
-          catatan_dosen: null,
-          nilai_angka: null,
-          nilai_huruf: null,
-        },
-        {
-          id_item: 102,
-          id_item_konversi: 102,
-          kode_mk: "ST116",
-          nama_mk: "Pemrograman Basis Data",
-          sks: 4,
-          cpmk: "CPMK15-Mahasiswa mampu menganalisis arsitektur basis data relasional & NoSQL",
-          objective: "Mengoptimalkan skema PostgreSQL, menulis query kompleks, serta menerapkan indeks database.",
-          durasi: "6 Bulan",
-          status_step: "Disetujui DPL",
-          catatan_dosen: "Penggunaan indexing dan query optimization sudah tepat.",
-          nilai_angka: 88,
-          nilai_huruf: "A",
-        },
-        {
-          id_item: 103,
-          id_item_konversi: 103,
-          kode_mk: "ST055",
-          nama_mk: "Arsitektur REST API & Cloud Computing",
-          sks: 4,
-          cpmk: "CPMK12-Mahasiswa mampu membangun API microservices dan cloud infrastructure",
-          objective: "Mengembangkan REST API scalable dengan Node.js Express dan meluncurkan pada Cloud Server.",
-          durasi: "6 Bulan",
-          status_step: "Menunggu Review DPL",
-          catatan_dosen: null,
-          nilai_angka: null,
-          nilai_huruf: null,
-        },
-        {
-          id_item: 104,
-          id_item_konversi: 104,
-          kode_mk: "ST091",
-          nama_mk: "Analisis dan Desain Sistem Informasi",
-          sks: 4,
-          cpmk: "CPMK11-Mahasiswa mampu menganalisis proses bisnis dan merancang UML Diagram",
-          objective: "Menyusun dokumentasi arsitektur sistem, Use Case, Sequence Diagram, dan dokumentasi API Swagger.",
-          durasi: "6 Bulan",
-          status_step: "Disetujui DPL",
-          catatan_dosen: "Dokumentasi sangat lengkap.",
-          nilai_angka: 85,
-          nilai_huruf: "A",
-        },
-        {
-          id_item: 105,
-          id_item_konversi: 105,
-          kode_mk: "ST170",
-          nama_mk: "Rekayasa Perangkat Lunak",
-          sks: 4,
-          cpmk: "CPMK-Mahasiswa mampu menerapkan software engineering & clean architecture",
-          objective: "Menerapkan Agile/Scrum sprint, automated unit testing, dan CI/CD pipeline.",
-          durasi: "6 Bulan",
-          status_step: "Disetujui DPL",
-          catatan_dosen: "Implementasi CI/CD berjalan lancar.",
-          nilai_angka: 90,
-          nilai_huruf: "A",
-        },
-      ];
     }
 
+    const itemsKonversi = studentCatalog.courses;
     const totalSks = itemsKonversi.reduce((acc, curr) => acc + Number(curr.sks || 4), 0);
     const hasRevision = itemsKonversi.some((i) => (i.status_step || "").includes("Revisi"));
     const allApproved = itemsKonversi.every((i) => (i.status_step || "").includes("Disetujui") || (i.status_step || "").includes("ACC"));
 
-    let overallStatus = konversiHeader?.status_konversi || "Menunggu Review DPL";
+    let overallStatus = konversiHeader?.status_konversi || studentCatalog.status_konversi;
     if (hasRevision) overallStatus = "Revisi DPL";
     else if (allApproved) overallStatus = "Disetujui DPL";
 
+    studentCatalog.status_konversi = overallStatus;
+
     res.json({
       status: 200,
-      message: `Detail data mahasiswa bimbingan ${studentName} (NIM: ${nimParam}) berhasil diambil`,
+      message: `Detail data mahasiswa bimbingan ${mProfile?.nama || studentCatalog.nama} (NIM: ${nimParam}) berhasil diambil`,
       data: {
         dosen: {
           nidn: dpl.nidn,
@@ -573,44 +497,46 @@ router.get("/mahasiswa/:nim", authenticateToken, requireRole(["DPL", "ADMIN_PROD
         },
         mahasiswa: {
           nim: nimParam,
-          nama: studentName,
-          email: studentEmail,
-          prodi: mProfile?.prodi || "Informatika",
-          angkatan: mProfile?.angkatan || "2021",
-          foto_profile: mProfile?.foto_profile || `https://ui-avatars.com/api/?name=${encodeURIComponent(studentName)}&background=4f46e5&color=fff&bold=true`,
+          nama: mProfile?.nama || studentCatalog.nama,
+          email: mProfile?.email || studentCatalog.email,
+          prodi: mProfile?.prodi || studentCatalog.prodi,
+          angkatan: mProfile?.angkatan || studentCatalog.angkatan,
+          foto_profile: mProfile?.foto_profile || studentCatalog.foto_profile,
         },
         pengajuan_magang: {
           id_pengajuan: magangSub?.id_pengajuan || 1,
-          id_magang_fakultas: magangSub?.nomor_layanan_fik || magangSub?.id_magang_fakultas || dplSub?.id_magang_fakultas || "FIK6199373",
-          nama_instansi: magangSub?.nama_instansi || proposalSub?.nama_instansi || "PT GoTo Gojek Tokopedia Tbk",
-          posisi: magangSub?.posisi || proposalSub?.program_diikuti || "Fullstack Developer Intern",
-          jenis_program: magangSub?.jenis_program || "Magang Mandiri / MSIB",
-          durasi_bulan: magangSub?.durasi_bulan || 6,
-          tanggal_mulai: magangSub?.tanggal_mulai || "2026-02-01",
-          tanggal_selesai: magangSub?.tanggal_selesai || "2026-07-31",
-          supervisor_mitra: magangSub?.nama_supervisor_mitra || "Rian Hidayat (Lead Eng GoTo)",
-          email_supervisor_mitra: magangSub?.email_supervisor_mitra || "rian.hidayat@goto.com",
+          id_magang_fakultas: magangSub?.nomor_layanan_fik || magangSub?.id_magang_fakultas || dplSub?.id_magang_fakultas || studentCatalog.magang.id_magang_fakultas,
+          nama_instansi: magangSub?.nama_instansi || proposalSub?.nama_instansi || studentCatalog.magang.nama_instansi,
+          posisi: magangSub?.posisi || proposalSub?.program_diikuti || studentCatalog.magang.posisi,
+          jenis_program: magangSub?.jenis_program || studentCatalog.magang.jenis_program,
+          durasi_bulan: magangSub?.durasi_bulan || studentCatalog.magang.durasi_bulan,
+          tanggal_mulai: magangSub?.tanggal_mulai || studentCatalog.magang.tanggal_mulai,
+          tanggal_selesai: magangSub?.tanggal_selesai || studentCatalog.magang.tanggal_selesai,
+          supervisor_mitra: magangSub?.nama_supervisor_mitra || studentCatalog.magang.supervisor_mitra,
+          email_supervisor_mitra: magangSub?.email_supervisor_mitra || studentCatalog.magang.email_supervisor_mitra,
           status_pengajuan: magangSub?.status_pengajuan || "Disetujui",
           status_program: magangSub?.status_program || "Sedang Berjalan",
         },
         pengajuan_dpl: {
           id_pengajuan_dpl: dplSub?.id_pengajuan_dpl || 1,
           sks_ditempuh: dplSub?.sks_ditempuh || 110,
-          bukti_diterima_magang: dplSub?.bukti_diterima_magang || "https://res.cloudinary.com/demo/image/upload/v1/bukti_diterima_goto.pdf",
-          file_khs: dplSub?.file_khs || "https://res.cloudinary.com/demo/image/upload/v1/khs_budi.pdf",
-          sk_dpl_url: dplSub?.sk_dpl_url || "https://fik.amikom.ac.id/sk-dpl/SK-DPL-21.11.4001.pdf",
+          bukti_diterima_magang: dplSub?.bukti_diterima_magang || `https://fik.amikom.ac.id/bukti/BUKTI-ACCEPTANCE-${nimParam}.pdf`,
+          file_khs: dplSub?.file_khs || `https://fik.amikom.ac.id/khs/KHS-TRANSKRIP-${nimParam}.pdf`,
+          sk_dpl_url: dplSub?.sk_dpl_url || `https://fik.amikom.ac.id/sk-dpl/SK-DPL-${nimParam}.pdf`,
           status_pengajuan: dplSub?.status_pengajuan || "Disetujui",
         },
         proposal_magang: proposalSub ? {
           id_proposal: proposalSub.id_proposal,
           file_proposal_pdf: proposalSub.file_proposal_pdf,
           status_review: proposalSub.status_review,
-        } : null,
-        surat_pengantar: suratPengantarSub ? {
-          id_surat: suratPengantarSub.id_surat,
-          surat_pengantar_url: suratPengantarSub.surat_pengantar_url,
-          status_surat: suratPengantarSub.status_surat,
-        } : null,
+        } : {
+          file_proposal_pdf: `https://drive.google.com/file/d/proposal_${nimParam.replace(/\./g, "_")}.pdf`,
+          status_review: "Disetujui Kaprodi",
+        },
+        surat_pengantar: {
+          surat_pengantar_url: `https://fik.amikom.ac.id/surat/SURAT-PENGANTAR-FIK${nimParam.replace(/\./g, "")}.pdf`,
+          status_surat: "Disetujui",
+        },
         konversi_sks: {
           id_konversi: konversiHeader?.id_konversi || 1,
           mode_input: konversiHeader?.mode_input || "AI_RECOMMENDATION",
@@ -627,7 +553,7 @@ router.get("/mahasiswa/:nim", authenticateToken, requireRole(["DPL", "ADMIN_PROD
 
 // ----------------------------------------------------------------------
 // 4. POST & PUT /api/v1/dosen/konversi/review
-// Dosen Melakukan ACC / REVISI dengan Keterangan Wajib
+// Review DPL: ACC / REVISI / INPUT NILAI
 // ----------------------------------------------------------------------
 const handleDosenKonversiReview = async (req, res, next) => {
   try {
@@ -645,11 +571,7 @@ const handleDosenKonversiReview = async (req, res, next) => {
     } = req.body;
 
     const targetId = id_item_konversi || id_item;
-    const targetNim = nim || req.body.nim_mahasiswa || "21.11.4001";
-
-    if (!targetId && !targetNim) {
-      throw httpError(400, "Wajib menyertakan id_item_konversi / id_item atau nim mahasiswa");
-    }
+    const targetNim = nim || req.body.nim_mahasiswa || "24.11.6666";
 
     const chosenAction = action ? action.toUpperCase() : "ACC";
     const validActions = ["ACC", "REVISI", "INPUT_NILAI"];
@@ -658,7 +580,6 @@ const handleDosenKonversiReview = async (req, res, next) => {
       throw httpError(400, `Action tidak valid. Harus salah satu dari: ${validActions.join(", ")}`);
     }
 
-    // MANDATORY REVISION NOTE VALIDATION
     const noteText = (catatan_dosen || catatan_revisi || keterangan || "").trim();
     if (chosenAction === "REVISI" && !noteText) {
       throw httpError(400, "Catatan / keterangan revisi wajib diisi ketika dosen meminta revisi");
@@ -675,23 +596,19 @@ const handleDosenKonversiReview = async (req, res, next) => {
 
     const finalLetter = scoreNum !== null ? (nilai_huruf || calculateGradeLetter(scoreNum)) : (nilai_huruf || null);
 
-    // Update in item_konversi_mk
+    // Update in Supabase tables
     if (targetId) {
       await supabase
         .from("item_konversi_mk")
         .update({
           status_step: newStatusStep,
-          status_usulan: newStatusStep,
           catatan_dosen: finalNote,
           nilai_akhir_angka: scoreNum,
           nilai_akhir_huruf: finalLetter,
           updated_at: new Date().toISOString(),
         })
         .eq("id_item_konversi", targetId);
-    }
 
-    // Update in item_konversi_detail
-    if (targetId) {
       await supabase
         .from("item_konversi_detail")
         .update({
@@ -699,42 +616,34 @@ const handleDosenKonversiReview = async (req, res, next) => {
           catatan_dosen: finalNote,
           nilai_angka: scoreNum,
           nilai_huruf: finalLetter,
+          updated_at: new Date().toISOString(),
         })
         .eq("id_item", targetId);
     }
 
-    // Also update all items for student if bulk NIM request
-    if (targetNim && !targetId) {
-      await supabase
-        .from("item_konversi_detail")
-        .update({
-          status_item: newStatusStep,
-          catatan_dosen: finalNote,
-          nilai_angka: scoreNum,
-          nilai_huruf: finalLetter,
-        })
-        .eq("nim", targetNim);
-    }
+    // Synchronize memory catalog for this student
+    const studentCatalog = DYNAMIC_STUDENT_CATALOG.get(targetNim);
+    if (studentCatalog) {
+      for (const course of studentCatalog.courses) {
+        if (!targetId || Number(course.id_item) === Number(targetId) || Number(course.id_item_konversi) === Number(targetId)) {
+          course.status_step = newStatusStep;
+          course.catatan_dosen = finalNote;
+          if (scoreNum !== null) course.nilai_angka = scoreNum;
+          if (finalLetter) course.nilai_huruf = finalLetter;
+        }
+      }
 
-    // Update Header pengajuan_konversi_matkul status
-    if (targetNim) {
-      await supabase
-        .from("pengajuan_konversi_matkul")
-        .update({
-          status_konversi: newStatusStep,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("nim", targetNim);
+      const statuses = studentCatalog.courses.map((c) => c.status_step);
+      if (statuses.some((s) => s.includes("Revisi"))) studentCatalog.status_konversi = "Revisi DPL";
+      else if (statuses.every((s) => s.includes("Disetujui") || s.includes("ACC"))) studentCatalog.status_konversi = "Disetujui DPL";
     }
 
     res.json({
       status: 200,
-      message: `Review konversi SKS oleh Dosen DPL (${dpl.nama}) berhasil disimpan (Status: ${newStatusStep})`,
+      message: `Review DPL untuk mahasiswa (${targetNim}) berhasil disimpan [Action: ${chosenAction}]`,
       data: {
-        id_item_konversi: targetId || 1,
         nim: targetNim,
-        action: chosenAction,
-        status_step: newStatusStep,
+        id_item_konversi: targetId || null,
         status_konversi: newStatusStep,
         catatan_dosen: finalNote,
         nilai_angka: scoreNum,
@@ -754,9 +663,7 @@ const handleDosenKonversiReview = async (req, res, next) => {
 router.post("/konversi/review", authenticateToken, requireRole(["DPL", "ADMIN_PRODI"]), handleDosenKonversiReview);
 router.put("/konversi/review", authenticateToken, requireRole(["DPL", "ADMIN_PRODI"]), handleDosenKonversiReview);
 
-// ----------------------------------------------------------------------
-// 5. HELPER SHORTCUT ENDPOINTS: ACC & REVISI
-// ----------------------------------------------------------------------
+// Shortcut routes
 router.post("/konversi/acc", authenticateToken, requireRole(["DPL", "ADMIN_PRODI"]), (req, res, next) => {
   req.body.action = "ACC";
   return handleDosenKonversiReview(req, res, next);
@@ -778,32 +685,14 @@ router.put("/konversi/revisi", authenticateToken, requireRole(["DPL", "ADMIN_PRO
 });
 
 // ----------------------------------------------------------------------
-// 6. EXPORT DATA MAHASISWA BIMBINGAN DPL TO EXCEL / CSV
+// 5. EXPORT DATA MAHASISWA BIMBINGAN DPL TO EXCEL / CSV
 // ----------------------------------------------------------------------
-const { sendExportResponse } = require("../utils/exportHelper");
-
 router.get(["/export/mahasiswa", "/export-mahasiswa"], authenticateToken, requireRole(["DPL", "ADMIN_PRODI"]), async (req, res, next) => {
   try {
     const dpl = await resolveDplProfile(req);
     const format = req.query.format || "excel";
 
-    const { data: dbDplSubs } = await supabase.from("pengajuan_dpl").select("*").eq("nidn_dpl", dpl.nidn);
-    const { data: dbMhs } = await supabase.from("mahasiswa").select("*");
-    const { data: dbStep1 } = await supabase.from("pengajuan_magang").select("*");
-    const { data: dbStep2 } = await supabase.from("proposal_magang").select("*");
-    const { data: dbStep5 } = await supabase.from("pengajuan_konversi_matkul").select("*");
-    const { data: dbStep6 } = await supabase.from("surat_akhir_magang").select("*");
-
-    let advisees = (dbMhs && dbMhs.length > 0) ? dbMhs : [
-      { nim: "24.11.6666", nama: "Fathur Rahman", prodi: "Informatika", angkatan: "2024", email: "fathur.6666@students.amikom.ac.id" },
-      { nim: "21.11.4001", nama: "Budi Santoso", prodi: "Informatika", angkatan: "2021", email: "budi.4001@students.amikom.ac.id" },
-    ];
-
-    if (dbDplSubs && dbDplSubs.length > 0) {
-      const nims = dbDplSubs.map((d) => d.nim);
-      const filtered = advisees.filter((m) => nims.includes(m.nim));
-      if (filtered.length > 0) advisees = filtered;
-    }
+    const catalogList = Array.from(DYNAMIC_STUDENT_CATALOG.values());
 
     const headers = [
       "NIM",
@@ -812,7 +701,7 @@ router.get(["/export/mahasiswa", "/export-mahasiswa"], authenticateToken, requir
       "Angkatan",
       "Email Student",
       "Nama Instansi Magang",
-      "Jenis Program Magang",
+      "Posisi Magang",
       "Total SKS Usulan",
       "Daftar Mata Kuliah Konversi",
       "Status Review DPL",
@@ -822,38 +711,31 @@ router.get(["/export/mahasiswa", "/export-mahasiswa"], authenticateToken, requir
       "Tanggal Pengajuan",
     ];
 
-    const rows = advisees.map((mhs) => {
-      const nim = mhs.nim;
-      const step1 = (dbStep1 || []).find((s) => String(s.nim || "") === String(nim)) || {};
-      const step2 = (dbStep2 || []).find((p) => String(p.nim || "") === String(nim)) || {};
-      const step5 = (dbStep5 || []).find((k) => String(k.nim || "") === String(nim)) || {};
-      const step6 = (dbStep6 || []).find((s) => String(s.nim || "") === String(nim)) || {};
+    const rows = catalogList.map((mhs) => {
+      const totalSks = mhs.courses.reduce((sum, c) => sum + Number(c.sks || 4), 0);
+      const mkListStr = mhs.courses.map((i) => `${i.kode_mk} (${i.sks} SKS)`).join("; ");
 
-      const namaInstansi = step1.nama_instansi || step2.nama_instansi || "PT GoTo Gojek Tokopedia Tbk";
-      const jenisProgram = step2.program_diikuti || step1.jenis_program || "Magang Mandiri";
-      const totalSks = step5.total_sks || 20;
-      const mkListStr = (step5.items || []).map((i) => `${i.kode_mk} (${i.sks} SKS)`).join("; ") || "ST084, ST116, ST091, ST055, ST062 (20 SKS)";
-      const statusDpl = step5.status_konversi || "Disetujui DPL";
-      const catatanDpl = step5.catatan_dosen || "Pemetaan modul industri sangat sesuai CPMK prodi.";
-      const nilaiAngka = step6.nilai_mitra_angka || 91.8;
-      const nilaiHuruf = step6.nilai_mitra_huruf || calculateGradeLetter(nilaiAngka) || "A";
-      const createdDate = step1.created_at || mhs.created_at || "2026-07-27";
+      const scoredCourses = mhs.courses.filter((c) => c.nilai_angka !== null && c.nilai_angka !== undefined);
+      const avgScore = scoredCourses.length > 0
+        ? Math.round(scoredCourses.reduce((sum, c) => sum + Number(c.nilai_angka), 0) / scoredCourses.length)
+        : null;
+      const letterScore = calculateGradeLetter(avgScore);
 
       return [
-        nim,
+        mhs.nim,
         mhs.nama,
-        mhs.prodi || "Informatika",
-        mhs.angkatan || "2024",
-        mhs.email || `${nim}@students.amikom.ac.id`,
-        namaInstansi,
-        jenisProgram,
+        mhs.prodi,
+        mhs.angkatan,
+        mhs.email,
+        mhs.magang.nama_instansi,
+        mhs.magang.posisi,
         totalSks,
         mkListStr,
-        statusDpl,
-        catatanDpl,
-        nilaiAngka,
-        nilaiHuruf,
-        createdDate,
+        mhs.status_konversi,
+        mhs.courses[0]?.catatan_dosen || "Pemetaan modul industri sangat sesuai CPMK prodi.",
+        avgScore !== null ? avgScore : "-",
+        letterScore !== null ? letterScore : "-",
+        mhs.magang.tanggal_mulai || "2026-07-27",
       ];
     });
 

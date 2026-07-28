@@ -50,6 +50,8 @@ const endpointCatalog = [
   ["Dashboard Mahasiswa", "GET", "/api/v1/mahasiswa/dashboard?nim=21.11.4001", "4. Full Dashboard Data (NIM 21.11.4001 - Budi Santoso)", {}],
   ["Dashboard Mahasiswa", "GET", "/api/v1/mahasiswa/riwayat-semester", "5. Riwayat Magang per Semester & Berkas Dokumen ACC (User Logged-In)", {}],
   ["Dashboard Mahasiswa", "GET", "/api/v1/mahasiswa/riwayat-semester?nim=24.11.6666", "6. Riwayat Magang per Semester & Berkas Dokumen ACC (NIM 24.11.6666)", {}],
+  ["Dashboard Mahasiswa", "GET", "/api/v1/mahasiswa/logbook", "7. 📝 Mahasiswa Lihat Logbook Harian/Mingguan (User Logged-In)", {}],
+  ["Dashboard Mahasiswa", "POST", "/api/v1/mahasiswa/logbook", "8. 📝 Mahasiswa Kirim/Submit Logbook Mingguan", { minggu_ke: 3, tanggal_mulai: "2026-08-10", tanggal_selesai: "2026-08-16", ringkasan_kegiatan: "Implementasi REST API Logbook Mahasiswa & Integrasi Mitra Supervisor.", file_lampiran_url: "https://drive.google.com/file/d/logbook_m3_24116666.pdf" }],
 
   // AUTENTIKASI & USER MANAGEMENT
   ["Autentikasi", "POST", "/api/v1/auth/register-mahasiswa", "Registrasi Mahasiswa Mandiri", { nim: "21.11.4005", nama: "Rizky Ramadhan", email: "rizky.ramadhan@students.amikom.ac.id", password: "Password123" }],

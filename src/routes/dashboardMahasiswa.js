@@ -440,7 +440,7 @@ async function getMahasiswaDashboard(req, res, next) {
 }
 
 // ----------------------------------------------------------------------
-// NEW ENDPOINT: GET RIWAYAT MAGANG MAHASISWA PER SEMESTER & BERKAS DOKUMEN ACC
+// GET RIWAYAT MAGANG MAHASISWA PER SEMESTER & BERKAS DOKUMEN ACC
 // ----------------------------------------------------------------------
 async function getMahasiswaRiwayatSemester(req, res, next) {
   try {
@@ -714,13 +714,146 @@ async function getMahasiswaRiwayatSemester(req, res, next) {
   }
 }
 
+// ----------------------------------------------------------------------
+// NEW ENDPOINT: LOGBOOK HARIAN / MINGGUAN MAHASISWA (GET & POST)
+// ----------------------------------------------------------------------
+const memoryMahasiswaLogbookStore = [
+  {
+    id_logbook: 101,
+    nim: "24.11.6666",
+    nama_mahasiswa: "Fathur Rahman",
+    minggu_ke: 1,
+    tanggal_mulai: "2026-07-27",
+    tanggal_selesai: "2026-08-02",
+    ringkasan_kegiatan: "Onboarding tim engineering, setup environment Node.js & Supabase PostgreSQL RLS, merancang ERD basis data.",
+    file_lampiran_url: "https://drive.google.com/file/d/logbook_m1_fathur.pdf",
+    status_verifikasi: "Disetujui Supervisor Mitra",
+    catatan_supervisor: "Kerja sangat cepat & arsitektur database terstruktur dengan baik.",
+    verified_at: "2026-08-03T09:00:00Z",
+  },
+  {
+    id_logbook: 102,
+    nim: "24.11.6666",
+    nama_mahasiswa: "Fathur Rahman",
+    minggu_ke: 2,
+    tanggal_mulai: "2026-08-03",
+    tanggal_selesai: "2026-08-09",
+    ringkasan_kegiatan: "Implementasi REST API authentication JWT, role-based authorization, dan unit test Jest.",
+    file_lampiran_url: "https://drive.google.com/file/d/logbook_m2_fathur.pdf",
+    status_verifikasi: "Pending Review",
+    catatan_supervisor: null,
+    verified_at: null,
+  },
+  {
+    id_logbook: 103,
+    nim: "21.11.4001",
+    nama_mahasiswa: "Budi Santoso",
+    minggu_ke: 1,
+    tanggal_mulai: "2026-07-27",
+    tanggal_selesai: "2026-08-02",
+    ringkasan_kegiatan: "Pengenalan repositori Git perusahaan, perbaikan bug minor UI dashboard React.js.",
+    file_lampiran_url: "https://drive.google.com/file/d/logbook_m1_budi.pdf",
+    status_verifikasi: "Disetujui Supervisor Mitra",
+    catatan_supervisor: "Bagus, perbaiki indentasi kode di pull request.",
+    verified_at: "2026-08-03T10:15:00Z",
+  },
+];
+
+async function getMahasiswaLogbook(req, res, next) {
+  try {
+    const mhs = await resolveMahasiswaProfile(req);
+    const targetNim = mhs.nim;
+    const queryMinggu = req.query.minggu ? Number(req.query.minggu) : null;
+
+    let items = memoryMahasiswaLogbookStore.filter((l) => String(l.nim) === String(targetNim));
+
+    if (queryMinggu) {
+      items = items.filter((l) => Number(l.minggu_ke) === queryMinggu);
+    }
+
+    const totalSubmitted = items.length;
+    const totalApproved = items.filter((i) => i.status_verifikasi.includes("Disetujui")).length;
+    const totalPending = items.filter((i) => i.status_verifikasi.includes("Pending")).length;
+    const totalRevisi = items.filter((i) => i.status_verifikasi.includes("Revisi")).length;
+
+    res.json({
+      status: 200,
+      message: "Daftar catatan logbook harian/mingguan mahasiswa berhasil diambil",
+      data: {
+        mahasiswa: {
+          nim: mhs.nim,
+          nama: mhs.nama,
+          email: mhs.email,
+        },
+        ringkasan: {
+          total_logbook: totalSubmitted,
+          disetujui: totalApproved,
+          pending: totalPending,
+          revisi: totalRevisi,
+        },
+        items: items,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function postMahasiswaLogbook(req, res, next) {
+  try {
+    const mhs = await resolveMahasiswaProfile(req);
+    const { minggu_ke, tanggal_mulai, tanggal_selesai, ringkasan_kegiatan, file_lampiran_url } = req.body;
+
+    if (!ringkasan_kegiatan || !ringkasan_kegiatan.trim()) {
+      throw httpError(400, "Ringkasan kegiatan logbook harian/mingguan wajib diisi");
+    }
+
+    const weekNum = Number(minggu_ke || 1);
+    const tglMulai = tanggal_mulai || "2026-08-10";
+    const tglSelesai = tanggal_selesai || "2026-08-16";
+    const attachmentUrl = file_lampiran_url || `https://drive.google.com/file/d/logbook_m${weekNum}_${mhs.nim}.pdf`;
+
+    const newLogbook = {
+      id_logbook: Date.now(),
+      nim: mhs.nim,
+      nama_mahasiswa: mhs.nama,
+      minggu_ke: weekNum,
+      tanggal_mulai: tglMulai,
+      tanggal_selesai: tglSelesai,
+      ringkasan_kegiatan: ringkasan_kegiatan.trim(),
+      file_lampiran_url: attachmentUrl,
+      status_verifikasi: "Pending Review",
+      catatan_supervisor: null,
+      created_at: new Date().toISOString(),
+    };
+
+    memoryMahasiswaLogbookStore.unshift(newLogbook);
+
+    res.status(201).json({
+      status: 201,
+      message: `Logbook minggu ke-${weekNum} berhasil disimpan dan dikirim ke Supervisor Mitra`,
+      data: newLogbook,
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
 router.get("/dashboard", authenticateToken, getMahasiswaDashboard);
 router.get("/overview", authenticateToken, getMahasiswaDashboard);
 router.get("/riwayat-semester", authenticateToken, getMahasiswaRiwayatSemester);
 router.get("/dokumen-acc", authenticateToken, getMahasiswaRiwayatSemester);
 
+// Logbook Routes for Mahasiswa
+router.get("/logbook", authenticateToken, getMahasiswaLogbook);
+router.get("/logbook-harian", authenticateToken, getMahasiswaLogbook);
+router.post("/logbook", authenticateToken, postMahasiswaLogbook);
+router.post("/logbook/submit", authenticateToken, postMahasiswaLogbook);
+
 module.exports = {
   router,
   getMahasiswaDashboard,
   getMahasiswaRiwayatSemester,
+  getMahasiswaLogbook,
+  postMahasiswaLogbook,
 };

@@ -6,7 +6,14 @@ Dokumen ini berisi panduan teknis, **userflow**, **arsitektur API**, **struktur 
 
 ## 📌 1. Ikhtisar Dashboard DPL
 
-Dashboard DPL merupakan pusat kendali bagi **Dosen Pembimbing Lapangan (DPL)** untuk memantau mahasiswa bimbingan yang diampunya dalam semester berjalan, melihat detail data magang & usulan konversi SKS, serta melakukan **ACC (Persetujuan)** atau **REVISI dengan Catatan Wajib**.
+Dashboard DPL merupakan pusat kendali bagi **Dosen Pembimbing Lapangan (DPL)** yang memiliki 2 fitur & menu utama:
+
+1. **Menu Mahasiswa Bimbingan / Review Konversi SKS**:
+   - Menampilkan mahasiswa yang mengajukan konversi SKS magang (`GET /api/v1/dosen/mahasiswa`).
+   - Setiap mahasiswa memiliki **data profil, nama tempat magang / instansi, posisi magang, 5 steps progress, serta 5 mata kuliah konversi & objective pekerjaan yang 100% dinamis & unik per NIM** (`GET /api/v1/dosen/mahasiswa/:nim`).
+   - DPL dapat meninjau **Review Klaim Nilai** (ACC / Revisi) serta menginputkan nilai angka/huruf dan catatan evaluasi (`POST /api/v1/dosen/konversi/review`).
+2. **Menu Kelola List Mahasiswa Pendampingan & Export Excel**:
+   - Menu khusus untuk melihat seluruh daftar mahasiswa yang didampingi beserta fitur **Export to Excel (.xls / .csv)** (`GET /api/v1/dosen/export/mahasiswa?format=excel`).
 
 ```mermaid
 graph TD

@@ -746,4 +746,14 @@ router.get("/dokumen-acc", authenticateToken, (req, res, next) => {
   return getMahasiswaRiwayatSemester(req, res, next);
 });
 
+router.get("/logbook", authenticateToken, (req, res, next) => {
+  const { getMahasiswaLogbook } = require("./dashboardMahasiswa");
+  return getMahasiswaLogbook(req, res, next);
+});
+
+router.post("/logbook", authenticateToken, (req, res, next) => {
+  const { postMahasiswaLogbook } = require("./dashboardMahasiswa");
+  return postMahasiswaLogbook(req, res, next);
+});
+
 module.exports = router;

@@ -11,10 +11,12 @@ GET /api/v1/mahasiswa/dashboard
 GET /api/v1/dashboard/mahasiswa
 GET /api/v1/mahasiswa/riwayat-semester
 GET /api/v1/pengajuan-fik/riwayat-semester
+GET /api/v1/mahasiswa/logbook
+POST /api/v1/mahasiswa/logbook
 ```
 
 - **Authentication Required**: `Bearer <JWT_TOKEN>` (Header `Authorization`) atau opsional query parameter `?nim=24.11.6666` untuk kemudahan testing.
-- **Roles**: `MAHASISWA` (atau `ADMIN_PRODI` / `DPL` untuk monitoring dashboard mahasiswa).
+- **Roles**: `MAHASISWA` (atau `ADMIN_PRODI` / `DPL` / `MITRA` untuk monitoring logbook).
 
 ---
 
